@@ -1,10 +1,10 @@
 import AuthenticationServices
 import CryptoKit
 import Foundation
-import Observation
 import Security
 import StoreKit
 import UIKit
+import Combine
 
 /// One credit pack on sale: the App Store product and the credits it grants.
 struct FishPocketPack: Identifiable {
@@ -21,8 +21,7 @@ struct FishPocketPack: Identifiable {
 /// to the Fish Pocket API. The engine gets the runtime key alone, through the
 /// credentials service, as it gets a DeepSeek API key.
 @MainActor
-@Observable
-final class FishPocketAccount {
+final class FishPocketAccount: ObservableObject {
     private enum Stored {
         static let session = "session"
         static let refresh = "refresh"
@@ -53,29 +52,29 @@ final class FishPocketAccount {
         }
     }
 
-    @ObservationIgnored private let engine: EngineClient
-    @ObservationIgnored private let http: FishPocketHTTP?
+    private let engine: EngineClient
+    private let http: FishPocketHTTP?
 
-    private(set) var signedIn: Bool
-    private(set) var user: User?
+    @Published private(set) var signedIn: Bool
+    @Published private(set) var user: User?
     /// Spendable credits; nil until read.
-    private(set) var balance: Int?
+    @Published private(set) var balance: Int?
     /// The server credits this account's sandbox purchases.
-    private(set) var sandboxPurchases = false
-    private(set) var packs: [FishPocketPack] = []
-    private(set) var packsFailed = false
+    @Published private(set) var sandboxPurchases = false
+    @Published private(set) var packs: [FishPocketPack] = []
+    @Published private(set) var packsFailed = false
     /// What one credit buys, as the server states it with the packs: tokens of input, and of output.
-    private(set) var tokensPerCredit: (input: Int, output: Int)?
+    @Published private(set) var tokensPerCredit: (input: Int, output: Int)?
     /// A pack purchase in progress.
-    private(set) var purchasing: String?
+    @Published private(set) var purchasing: String?
     /// The conversation ran out of credits: offer the packs.
-    var quotaPrompt = false
-    var toast: String?
+    @Published var quotaPrompt = false
+    @Published var toast: String?
 
-    @ObservationIgnored private var transactionTask: Task<Void, Never>?
-    @ObservationIgnored private var refreshing: Task<String?, Never>?
+    private var transactionTask: Task<Void, Never>?
+    private var refreshing: Task<String?, Never>?
     /// Transactions being redeemed: `Transaction.updates` and `.unfinished` both deliver them at launch.
-    @ObservationIgnored private var redeeming: Set<UInt64> = []
+    private var redeeming: Set<UInt64> = []
 
     init(engine: EngineClient) {
         self.engine = engine

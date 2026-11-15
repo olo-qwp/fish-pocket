@@ -4,13 +4,13 @@ import SwiftUI
 /// running, a few recent ones, and the balance. An approval opens from its row;
 /// a finished turn arrives as a card on top.
 struct HomeView: View {
-    @Environment(WatchModel.self) private var model
+    @EnvironmentObject private var model: WatchModel
     @State private var approving: WatchSnapshot.Session?
     /// Taps on the fish: each one makes it hop.
     @State private var pokes = 0
 
     var body: some View {
-        @Bindable var model = model
+        @ObservedObject var model = model
         ScrollView {
             VStack(spacing: 8) {
                 Button {

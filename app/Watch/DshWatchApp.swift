@@ -4,13 +4,13 @@ import SwiftUI
 /// is waiting for, and a tap when it is done. The engine stays on the phone.
 @main
 struct DshWatchApp: App {
-    @State private var model = WatchModel()
+    @StateObject private var model = WatchModel()
     @Environment(\.scenePhase) private var scenePhase
 
     var body: some Scene {
         WindowGroup {
             NavigationStack { HomeView() }
-                .environment(model)
+                .environmentObject(model)
                 .onAppear { model.start() }
         }
         .onChange(of: scenePhase) { _, phase in

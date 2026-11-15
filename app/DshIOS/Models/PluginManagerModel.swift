@@ -1,5 +1,4 @@
 import Foundation
-import Observation
 import SwiftUI
 
 // MARK: - Plugin packages
@@ -181,8 +180,7 @@ enum PluginAction {
 /// actions on them. One per connection, shared by the page, its detail pages and the
 /// install task.
 @MainActor
-@Observable
-final class PluginManagerModel {
+final class PluginManagerModel: ObservableObject {
     enum Status { case idle, loading, ready, error, unavailable }
 
     /// Built-in profile bundles stay out of the page even when the profile declares them.
@@ -218,19 +216,19 @@ final class PluginManagerModel {
     ]
     static let marketBundle = "@deepseek-ai/dsh-experimental-plugin-market-bundle"
 
-    @ObservationIgnored unowned let app: AppModel
+    unowned let app: AppModel
 
-    private(set) var status: Status = .idle
-    private(set) var refreshing = false
-    private(set) var packages: [PluginPackage] = []
+    @Published private(set) var status: Status = .idle
+    @Published private(set) var refreshing = false
+    @Published private(set) var packages: [PluginPackage] = []
     /// Package names and `row:<entryId>` keys with an action in flight.
-    private(set) var busy: Set<String> = []
+    @Published private(set) var busy: Set<String> = []
     /// A package an install just enabled, marked in the list for a moment.
-    var highlight: String?
+    @Published var highlight: String?
 
-    @ObservationIgnored private var inflight: Task<Void, Never>?
-    @ObservationIgnored private var rerun = false
-    @ObservationIgnored private var loadedRevision: Int?
+    private var inflight: Task<Void, Never>?
+    private var rerun = false
+    private var loadedRevision: Int?
 
     init(app: AppModel) {
         self.app = app
@@ -370,7 +368,7 @@ final class PluginManagerModel {
 
     /// Why enabling a package last failed. The Host says so only in the answer to the switch:
     /// the list has nothing for a plugin that could not be imported, and it is gone after a restart.
-    private(set) var enableFailures: [String: String] = [:]
+    @Published private(set) var enableFailures: [String: String] = [:]
 
     /// `applied` for a switch turned on: what it failed with stays for the detail page.
     func appliedEnable(_ result: JSON, name: String, packageName: String) throws {

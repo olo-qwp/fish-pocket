@@ -22,7 +22,7 @@ struct FishPocketPrivacyNote: View {
 struct FishPocketPage: View {
     /// Opened because a conversation ran out of credits: the page is then about buying more.
     var topUp = false
-    @Environment(AppModel.self) private var app
+    @EnvironmentObject private var app: AppModel
     @Environment(\.systemLists) private var systemLists
     @State private var selected: String?
     @State private var phoneSignIn = false
@@ -61,14 +61,14 @@ struct FishPocketPage: View {
         .actionTray(shown: !account.signedIn || (account.canPurchase && chosen != nil)) {
             if account.signedIn { buyBar } else { signInBar }
         }
-        .animation(.snappy, value: account.signedIn)
+        .animation(.compatSnappy, value: account.signedIn)
         // Signed out, the page's own heading is the title.
         .navigationTitle(account.signedIn ? Text(topUp && account.canPurchase ? "购买额度" : "Fish Pocket 账号") : Text(verbatim: ""))
         .navigationBarTitleDisplayMode(.inline)
         .task { await account.refresh() }
         .task { if account.packs.isEmpty { await account.loadPacks() } }
         .refreshable { await account.refresh() }
-        .sheet(isPresented: $phoneSignIn) { PhoneSignInSheet().environment(app) }
+        .sheet(isPresented: $phoneSignIn) { PhoneSignInSheet().environmentObject(app) }
         .alert("退出登录", isPresented: $confirmingSignOut) {
             Button("取消", role: .cancel) {}
             Button("退出登录", role: .destructive) { Task { await account.signOut() } }
@@ -112,7 +112,7 @@ struct FishPocketPage: View {
                             selected: account.signedIn ? chosen?.id == pack.id : nil
                         ) {
                             Haptics.tap()
-                            withAnimation(.snappy) { selected = pack.id }
+                            withAnimation(.compatSnappy) { selected = pack.id }
                         }
                     }
                 }
@@ -270,7 +270,7 @@ private struct CardSurface: ViewModifier {
 struct AppleSignInButton: View {
     /// A failure to show; nil clears it.
     let report: (String?) -> Void
-    @Environment(AppModel.self) private var app
+    @EnvironmentObject private var app: AppModel
     @Environment(\.colorScheme) private var colorScheme
     @State private var nonce = FishPocketAccount.appleNonce()
     @State private var busy = false
@@ -313,7 +313,7 @@ struct AppleSignInButton: View {
 
 /// Phone number and SMS code (mainland China numbers).
 struct PhoneSignInSheet: View {
-    @Environment(AppModel.self) private var app
+    @EnvironmentObject private var app: AppModel
     @Environment(\.dismiss) private var dismiss
     @State private var phone = ""
     @State private var code = ""
@@ -469,7 +469,7 @@ struct FishPocketBalance: View {
         }
         .frame(maxWidth: .infinity)
         .padding(.top, 12)
-        .animation(.snappy, value: balance)
+        .animation(.compatSnappy, value: balance)
         .accessibilityElement(children: .combine)
     }
 }
@@ -608,7 +608,7 @@ struct FishPocketTopUpSheet: View {
 
 /// The Fish Pocket toast line (purchases credited, sign-in lost).
 struct FishPocketNotices: View {
-    @Environment(AppModel.self) private var app
+    @EnvironmentObject private var app: AppModel
 
     var body: some View {
         VStack {
@@ -627,6 +627,6 @@ struct FishPocketNotices: View {
                     }
             }
         }
-        .animation(.snappy, value: app.fishPocket.toast)
+        .animation(.compatSnappy, value: app.fishPocket.toast)
     }
 }

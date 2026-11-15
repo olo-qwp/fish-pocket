@@ -106,7 +106,7 @@ struct RemoteOptionsSheet: View {
 /// grouped list, as the pages of 设置 are.
 struct RemoteInfoSheet: View {
     let model: RemoteSessionModel
-    @Environment(AppModel.self) private var app
+    @EnvironmentObject private var app: AppModel
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
@@ -168,7 +168,7 @@ struct RemoteChangesSheet: View {
         NavigationStack {
             Group {
                 if changes.isEmpty {
-                    ContentUnavailableView("还没有改动", systemImage: "doc.text.magnifyingglass", description: Text("智能体改过的文件会显示在这里。"))
+                    CompatContentUnavailableView("还没有改动", systemImage: "doc.text.magnifyingglass", description: Text("智能体改过的文件会显示在这里。"))
                 } else {
                     List {
                         Section {
@@ -239,7 +239,7 @@ private struct RemoteDirectoryPage: View {
     let root: String
     let path: String
     let title: String
-    @Environment(AppModel.self) private var app
+    @EnvironmentObject private var app: AppModel
     @State private var entries: [RemoteFileEntry]?
     @State private var failure: String?
     @State private var query = ""
@@ -281,12 +281,12 @@ private struct RemoteDirectoryPage: View {
         .overlay {
             if let entries {
                 if entries.isEmpty {
-                    ContentUnavailableView("空文件夹", systemImage: "folder")
+                    CompatContentUnavailableView("空文件夹", systemImage: "folder")
                 } else if shown.isEmpty {
-                    ContentUnavailableView.search(text: query)
+                    CompatContentUnavailableView.search(text: query)
                 }
             } else if let failure {
-                ContentUnavailableView {
+                CompatContentUnavailableView {
                     Label("读不到这个文件夹", systemImage: "exclamationmark.triangle")
                 } description: {
                     Text(failure)
@@ -349,7 +349,7 @@ private struct RemoteFilePage: View {
     let deviceId: String
     let root: String
     let entry: RemoteFileEntry
-    @Environment(AppModel.self) private var app
+    @EnvironmentObject private var app: AppModel
     @State private var text: String?
     @State private var truncated = false
     @State private var failure: String?
@@ -375,7 +375,7 @@ private struct RemoteFilePage: View {
                     .padding(16)
                 }
             } else if let failure {
-                ContentUnavailableView("打不开这个文件", systemImage: "doc.questionmark", description: Text(failure))
+                CompatContentUnavailableView("打不开这个文件", systemImage: "doc.questionmark", description: Text(failure))
             } else {
                 ProgressView()
             }
@@ -386,7 +386,7 @@ private struct RemoteFilePage: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             if let text {
-                ToolbarItemGroup(placement: .topBarTrailing) {
+                ToolbarItemGroup(placement: .navigationBarTrailing) {
                     if isMarkdown {
                         Button { rendered.toggle() } label: { Image(systemName: rendered ? "chevron.left.forwardslash.chevron.right" : "doc.richtext") }
                             .accessibilityLabel(rendered ? "查看源文本" : "查看排版")

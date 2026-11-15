@@ -3,7 +3,7 @@ import SwiftUI
 /// A tool approval: which session asks, what for, and 拒绝 / 允许 always in reach.
 struct ApprovalView: View {
     let session: WatchSnapshot.Session
-    @Environment(WatchModel.self) private var model
+    @EnvironmentObject private var model: WatchModel
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {

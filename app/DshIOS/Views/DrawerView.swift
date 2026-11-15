@@ -25,7 +25,7 @@ struct DrawerView: View {
 
     private enum Route: Hashable { case archived }
 
-    @Environment(AppModel.self) private var app
+    @EnvironmentObject private var app: AppModel
     @EnvironmentObject private var engine: NodeEngine
     let selection: String?
     /// Where a new conversation from the top button goes: the current session's workspace.
@@ -58,7 +58,7 @@ struct DrawerView: View {
     @State private var remoteHits: [String: String] = [:]
     @State private var remoteMore = false
     @State private var searching = false
-    @State private var phoneControl = PhoneControlService()
+    @StateObject private var phoneControl = PhoneControlService()
     @Environment(\.scenePhase) private var scenePhase
     @State private var removingWorkspace: Workspace?
     @State private var showNewWorkspace = false
@@ -94,7 +94,7 @@ struct DrawerView: View {
             .background(Palette.background)
             // 操控手机's row says whether iCTRL runs; it changes while the user is in iCTRL.
             .task { await phoneControl.refresh() }
-            .onChange(of: scenePhase) { _, phase in
+            .onChangeCompat(of: scenePhase) { _, phase in
                 if phase == .active { Task { await phoneControl.refresh() } }
             }
             .toolbar(.hidden, for: .navigationBar)
@@ -174,7 +174,7 @@ struct DrawerView: View {
         }
         .tint(Palette.ink)
         .opacity(searchShown ? 1 : 0)
-        .presentationBackground(.clear)
+        .compatPresentationBackground(.clear)
         .onAppear { withAnimation(.easeOut(duration: 0.2)) { searchShown = true } }
         // The field's own ✕ (取消 before iOS 26) is the way out.
         .onChange(of: searchActive) { if !searchActive { closeSearch() } }
@@ -621,7 +621,7 @@ struct DrawerView: View {
         let offline = group.device?.online == false
         return Button {
             Haptics.select()
-            withAnimation(.snappy(duration: 0.2)) { setExpanded(group, !open) }
+            withAnimation(.compatSnappy(duration: 0.2)) { setExpanded(group, !open) }
         } label: {
             HStack(spacing: 10) {
                 Image(systemName: group.symbol == "folder" ? (open ? "folder" : "folder.fill") : group.symbol)
@@ -683,7 +683,7 @@ struct DrawerView: View {
     private func moreRow(_ group: SessionGroup, shown: Int) -> some View {
         let hidden = group.rows.count - shown
         return Button {
-            withAnimation(.snappy(duration: 0.2)) {
+            withAnimation(.compatSnappy(duration: 0.2)) {
                 if hidden > 0 {
                     watermark[group.id] = hidden <= Self.baseRows ? group.rows.count : shown + Self.baseRows
                 } else {
@@ -1211,7 +1211,7 @@ private struct SearchPageClose: ViewModifier {
     func body(content: Content) -> some View {
         content.toolbar {
             if #available(iOS 26.0, *), UIDevice.current.userInterfaceIdiom == .pad, sizeClass == .regular {
-                ToolbarItem(placement: .topBarLeading) {
+                ToolbarItem(placement: .navigationBarLeading) {
                     Button(action: action) { Image(systemName: "xmark") }
                         .accessibilityLabel("关闭")
                 }

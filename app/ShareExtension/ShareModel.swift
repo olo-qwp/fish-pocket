@@ -1,13 +1,12 @@
 import ImageIO
-import Observation
 import UIKit
 import UniformTypeIdentifiers
+import Combine
 
 /// What was shared, copied into a delivery folder of `ShareInbox` as soon as the sheet
 /// opens, so that picking where it goes is instant. Cancelling drops the folder.
 @MainActor
-@Observable
-final class ShareModel {
+final class ShareModel: ObservableObject {
     enum Phase: Equatable {
         case reading
         case ready
@@ -17,21 +16,21 @@ final class ShareModel {
         case waitingForApp
     }
 
-    private(set) var phase = Phase.reading
-    private(set) var texts: [String] = []
+    @Published private(set) var phase = Phase.reading
+    @Published private(set) var texts: [String] = []
     /// File names in the delivery folder.
-    private(set) var files: [String] = []
-    private(set) var imageCount = 0
+    @Published private(set) var files: [String] = []
+    @Published private(set) var imageCount = 0
     /// The first image, small.
-    private(set) var thumbnail: UIImage?
+    @Published private(set) var thumbnail: UIImage?
     let targets = ShareTargets.read()
     /// Chosen in the share sheet's top row: it goes there as soon as it is read.
-    var preset: (target: ShareInbox.Target, name: String)?
+    @Published var preset: (target: ShareInbox.Target, name: String)?
 
-    @ObservationIgnored var finish: () -> Void = {}
-    @ObservationIgnored var cancel: () -> Void = {}
-    @ObservationIgnored var openApp: (URL) -> Bool = { _ in false }
-    @ObservationIgnored private var delivery: (id: String, folder: URL)?
+    var finish: () -> Void = {}
+    var cancel: () -> Void = {}
+    var openApp: (URL) -> Bool = { _ in false }
+    private var delivery: (id: String, folder: URL)?
 
     func load(_ providers: [NSItemProvider]) {
         Task {

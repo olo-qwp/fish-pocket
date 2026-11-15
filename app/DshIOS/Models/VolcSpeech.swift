@@ -1,13 +1,12 @@
 import AVFoundation
 import Foundation
-import Observation
 import Security
+import Combine
 
 /// Hold-to-talk through Volcengine's streaming recognition (豆包语音), on the user's own API Key.
 /// The key stays in this device's keychain; audio goes straight from the phone to Volcengine.
 @MainActor
-@Observable
-final class VolcSpeech {
+final class VolcSpeech: ObservableObject {
     static let shared = VolcSpeech()
 
     /// The two-way streaming endpoint, optimized version: text comes back while the user speaks.
@@ -35,8 +34,8 @@ final class VolcSpeech {
     private static let resourceKey = "voiceVolcResource"
 
     /// The saved key, or nil.
-    private(set) var key: String?
-    var resource: Resource {
+    @Published private(set) var key: String?
+    @Published var resource: Resource {
         didSet { UserDefaults.standard.set(resource.rawValue, forKey: Self.resourceKey) }
     }
 

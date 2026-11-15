@@ -63,7 +63,7 @@ private struct WhatsNewContent: View {
             .padding(.bottom, 24)
             .frame(maxWidth: .infinity)
         }
-        .scrollBounceBehavior(.basedOnSize)
+        .compatScrollBounceBehavior()
         .background(Palette.grouped)
         .onAppear {
             if reduceMotion { appeared = true } else {
@@ -113,7 +113,7 @@ private struct FeatureCard: View {
             Image(systemName: feature.symbol)
                 .font(.system(size: 19, weight: .semibold))
                 .foregroundStyle(Palette.onInk)
-                .symbolEffect(.bounce, value: nod)
+                .compatSymbolEffectBounce(value: nod)
                 .frame(width: 46, height: 46)
                 .background(Palette.ink, in: RoundedRectangle(cornerRadius: 13, style: .continuous))
                 .accessibilityHidden(true)

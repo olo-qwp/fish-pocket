@@ -14,7 +14,7 @@ struct ComposerStatusBar: View {
     var interactionArrived = false
     /// On from opening the sheet until it is gone; the conversation's own sheets wait for it.
     @Binding var sheetUp: Bool
-    @Environment(AppModel.self) private var app
+    @EnvironmentObject private var app: AppModel
     @State private var showSheet = false
     /// The keyboard was up when the sheet opened: it comes back after.
     @State private var refocus = false
@@ -32,8 +32,8 @@ struct ComposerStatusBar: View {
                     .transition(.opacity)
             }
         }
-        .animation(.snappy, value: hasStatus)
-        .animation(.snappy, value: waiting)
+        .animation(.compatSnappy, value: hasStatus)
+        .animation(.compatSnappy, value: waiting)
         // Whether the goal continues on its own: re-read on goal changes, run edges and `goal/activation-changed`.
         .task(id: "\(composer.goal?.id ?? "")-\(composer.goal?.revision ?? 0)-\(model.running)-\(app.revision("goal/activation-changed"))") {
             await composer.refreshGoalActivation()
@@ -44,7 +44,7 @@ struct ComposerStatusBar: View {
         }) {
             ComposerStatusSheet(model: model, waiting: waiting, reveal: reveal)
         }
-        .onChange(of: interactionArrived) { _, arrived in
+        .onChangeCompat(of: interactionArrived) { _, arrived in
             if arrived { showSheet = false }
         }
     }
@@ -231,7 +231,7 @@ struct ComposerStatusSheet: View {
             // 「插话」 on the last queued row (or 「全部插话」, a delete, the agent picking
             // the queue up) leaves nothing to show: close, so the conversation behind
             // shows where the message went instead of a blank panel.
-            .onChange(of: hasContent) { _, has in
+            .onChangeCompat(of: hasContent) { _, has in
                 if !has { dismiss() }
             }
         }

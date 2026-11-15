@@ -1,7 +1,7 @@
 import ActivityKit
 import Foundation
-import Observation
 import UIKit
+import Combine
 
 /// The sessions on a computer that the phone answers for, outside their conversations. The
 /// lock screen and the widgets read them straight from `RemoteStore`; this keeps the rest in
@@ -12,6 +12,8 @@ final class RemotePresence {
     static let shared = RemotePresence()
 
     private weak var app: AppModel?
+    /// The model changes this follows (see `AppModel.changePublisher`).
+    private var observation: AnyCancellable?
     /// Requests already said.
     private var announced: Set<String> = []
 
@@ -24,9 +26,18 @@ final class RemotePresence {
 
     private func observe() {
         guard let app else { return }
-        let (attention, requests) = withObservationTracking { (app.remote.attention, app.remote.requests) } onChange: { [weak self] in
-            Task { @MainActor in self?.observe() }
+        if observation == nil {
+            observation = AppModel.changePublisher(app).sink { [weak self] _ in
+                Task { @MainActor in self?.refresh() }
+            }
         }
+        refresh()
+    }
+
+    private func refresh() {
+        guard let app else { return }
+        let attention = app.remote.attention
+        let requests = app.remote.requests
         app.remoteWorkChanged()
         announce(attention, requests: requests, in: app)
     }

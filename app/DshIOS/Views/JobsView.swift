@@ -55,11 +55,10 @@ struct JobRow: Identifiable, Hashable {
 /// The session's job roster: `job/list` frames carry the whole set; the stream stays
 /// open while the conversation is up, so the top bar knows when there is anything to show.
 @MainActor
-@Observable
-final class JobsModel {
-    private(set) var rows: [JobRow] = []
+final class JobsModel: ObservableObject {
+    @Published private(set) var rows: [JobRow] = []
     /// Settled rows cleared here; 清空 is client-side, as on the web.
-    private(set) var cleared: Set<String> = []
+    @Published private(set) var cleared: Set<String> = []
 
     /// Live rows first in start order, then settled rows newest-first.
     var live: [JobRow] { rows.filter(\.live).sorted { $0.startedAt < $1.startedAt } }
@@ -102,7 +101,7 @@ final class JobsModel {
 struct JobsSheet: View {
     let sessionId: String
     let jobs: JobsModel
-    @Environment(AppModel.self) private var app
+    @EnvironmentObject private var app: AppModel
     @Environment(\.dismiss) private var dismiss
     @State private var stopping: JobRow?
     @State private var settledOpen: Bool?
@@ -124,7 +123,7 @@ struct JobsSheet: View {
                         } header: {
                             HStack {
                                 Button {
-                                    withAnimation(.snappy(duration: 0.2)) { settledOpen = !open }
+                                    withAnimation(.compatSnappy(duration: 0.2)) { settledOpen = !open }
                                 } label: {
                                     HStack(spacing: 4) {
                                         Image(systemName: "chevron.right").font(.caption2.weight(.bold)).rotationEffect(.degrees(open ? 90 : 0))
@@ -221,7 +220,7 @@ struct JobOutputView: View {
     let sessionId: String
     let jobs: JobsModel
     let job: JobRow
-    @Environment(AppModel.self) private var app
+    @EnvironmentObject private var app: AppModel
     @State private var text = ""
     @State private var gap = false
     @State private var failure: String?
@@ -250,7 +249,7 @@ struct JobOutputView: View {
                     }
                     Color.clear.frame(height: 1).id("bottom")
                         // iOS 17 has no scroll geometry; this marker's place in the scroll view says the same.
-                        .onGeometryChange(for: OutputEnd.self) { geometry in
+                        .onGeometryChangeCompat(for: OutputEnd.self) { geometry in
                             OutputEnd(contentHeight: geometry.frame(in: .named("output")).maxY, distance: -(geometry.bounds(of: .scrollView)?.maxY ?? 0))
                         } action: { new in
                             if new.contentHeight > end.contentHeight, end.distance <= OutputEnd.threshold { proxy.scrollTo("bottom", anchor: .bottom) }
@@ -265,7 +264,7 @@ struct JobOutputView: View {
         .navigationTitle("任务输出")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
+            ToolbarItem(placement: .navigationBarTrailing) {
                 Menu {
                     Button { copyToPasteboard(current.label) } label: { Label("复制命令", systemImage: "terminal") }
                     Button { copyToPasteboard(text) } label: { Label("复制输出", systemImage: "doc.on.doc") }.disabled(text.isEmpty)
@@ -273,7 +272,7 @@ struct JobOutputView: View {
                 .accessibilityLabel("复制")
             }
             if current.status == "running" {
-                ToolbarItem(placement: .topBarTrailing) {
+                ToolbarItem(placement: .navigationBarTrailing) {
                     Button("停止", role: .destructive) { stopping = current }.tint(Palette.removed)
                 }
             }

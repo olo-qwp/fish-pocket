@@ -172,7 +172,7 @@ struct MonoSwitch: View {
                     .frame(width: 22, height: 22)
                     .padding(3)
             }
-            .animation(.snappy(duration: 0.2), value: isOn)
+            .animation(.compatSnappy(duration: 0.2), value: isOn)
             .contentShape(Capsule())
             .onTapGesture { isOn.toggle(); Haptics.select() }
             .accessibilityElement()
@@ -324,8 +324,6 @@ extension View {
     func hitTarget(_ size: CGFloat = 44) -> some View {
         frame(minWidth: size, minHeight: size)
             .contentShape(Rectangle())
-            // A pointer (iPad): the area lights up as it passes.
-            .contentShape(.hoverEffect, RoundedRectangle(cornerRadius: 12, style: .continuous))
             .hoverEffect(.highlight)
     }
 
@@ -356,7 +354,7 @@ extension View {
     /// The same button, for a view its presenter closes.
     func closeButton(action: @escaping () -> Void) -> some View {
         toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
+            ToolbarItem(placement: .navigationBarTrailing) {
                 Button(action: action) { Image(systemName: "xmark") }
                     .accessibilityLabel("关闭")
             }

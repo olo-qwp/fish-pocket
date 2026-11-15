@@ -14,13 +14,13 @@ struct ConversationView: View {
     /// A Bot's chat or a group chat: its own title in the bar and its cards above the composer.
     var bot: BotChrome?
     /// The global automation page (the reminders sheet leads there).
-    @Environment(AppModel.self) private var app
+    @EnvironmentObject private var app: AppModel
     @Environment(\.horizontalSizeClass) private var sizeClass
     /// The split view's sidebar, as far as the conversation reaches it: room for the workbench, and
     /// (in a Bot's chat, which is pushed and has no drawer button of its own) the sidebar's button.
     @Environment(\.splitSidebar) private var splitSidebar
     @State private var model: SessionModel?
-    @State private var context = ComposerContext()
+    @StateObject private var context = ComposerContext()
     @State private var workbenchOpen = false
     /// The tab last looked at, in any conversation: the workbench opens where it was left.
     @AppStorage("dsh.workbench.tab") private var workbenchTab = WorkbenchTab.terminal
@@ -29,9 +29,9 @@ struct ConversationView: View {
     /// Interactions swiped away; they stay answerable from the 「等你允许」 line.
     @State private var deferred: Set<String> = []
     @State private var showNewWorkspace = false
-    @State private var jobs = JobsModel()
+    @StateObject private var jobs = JobsModel()
     @State private var headerSheet: SessionHeaderSheet?
-    @State private var presets = AgentPresetCatalog()
+    @StateObject private var presets = AgentPresetCatalog()
     /// The reader is at the end of the timeline, so it follows new output (C-12).
     @State private var atBottom = true
     @State private var showTurns = false
@@ -132,7 +132,7 @@ struct ConversationView: View {
     private func scrollToBottom(_ proxy: ScrollViewProxy, animated: Bool = true) {
         Task { @MainActor in
             if animated {
-                withAnimation(.snappy(duration: 0.2)) { proxy.scrollTo(Self.bottomId, anchor: .bottom) }
+                withAnimation(.compatSnappy(duration: 0.2)) { proxy.scrollTo(Self.bottomId, anchor: .bottom) }
             } else {
                 proxy.scrollTo(Self.bottomId, anchor: .bottom)
             }
@@ -167,7 +167,7 @@ struct ConversationView: View {
                 .animation(.easeOut(duration: 0.2), value: model.loaded)
             }
             // The first read in: open at the last message.
-            .onChange(of: model.loaded) { _, loaded in
+            .onChangeCompat(of: model.loaded) { _, loaded in
                 if loaded { atBottom = true; scrollToBottom(proxy, animated: false) }
             }
             .environment(\.timelineScroll, TimelineScroll(keep: { id in
@@ -177,23 +177,23 @@ struct ConversationView: View {
                     proxy.scrollTo(id, anchor: .top)
                 }
             }, top: timelineTop))
-            .onGeometryChange(for: CGFloat.self) { $0.frame(in: .global).minY } action: { timelineTop = $0 }
+            .onGeometryChangeCompat(for: CGFloat.self) { $0.frame(in: .global).minY } action: { timelineTop = $0 }
             .modifier(TimelineAnchor())
             .modifier(BottomFollow(atBottom: $atBottom) { scrollToBottom(proxy, animated: false) })
             // Any drag on the timeline hides the keyboard (`.interactively` only does when the finger reaches it),
             // even when the timeline is too short to scroll; so does a tap outside the composer.
             .scrollDismissesKeyboard(.immediately)
-            .scrollBounceBehavior(.always)
+            .compatScrollBounceBehavior(always: true)
             // A moment later, not at once: the keyboard going moves the rows, and a link under the
             // finger would lose the tap; it opens first, and the keyboard goes after.
             .simultaneousGesture(TapGesture().onEnded {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) { dismissKeyboard() }
             })
             // The bottom anchor only holds for the first layout; follow the user's own message and the start of a turn.
-            .onChange(of: model.items.last?.id) { _, _ in
+            .onChangeCompat(of: model.items.last?.id) { _, _ in
                 if case .user? = model.items.last { atBottom = true; scrollToBottom(proxy) }
             }
-            .onChange(of: model.running) { _, running in if running, atBottom { scrollToBottom(proxy) } }
+            .onChangeCompat(of: model.running) { _, running in if running, atBottom { scrollToBottom(proxy) } }
             .overlay(alignment: .bottomTrailing) {
                 // Animated here, not on the scroll view: its rows must not animate with the buttons.
                 ZStack {
@@ -213,7 +213,7 @@ struct ConversationView: View {
                         .transition(.opacity.combined(with: .scale(scale: 0.8)))
                     }
                 }
-                .animation(.snappy(duration: 0.18), value: atBottom)
+                .animation(.compatSnappy(duration: 0.18), value: atBottom)
             }
             // Opposite the scroll buttons: the agent's page and its background jobs, one tap from the chat.
             .overlay(alignment: .bottomLeading) {
@@ -297,7 +297,7 @@ struct ConversationView: View {
                 }
             }
             .readableWidth()
-            .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { app.composerHeight = $0 }
+            .onGeometryChangeCompat(for: CGFloat.self) { $0.size.height } action: { app.composerHeight = $0 }
         }
         .modifier(ComposerDrop(composer: model.composer, enabled: model.subagentReadOnly(parentAvailable: parentAvailable(model)) == nil))
         // Under the toolbar: what is inside an inspector's main view does not reach the navigation bar.
@@ -314,7 +314,7 @@ struct ConversationView: View {
         .toolbar(.visible, for: .navigationBar)
         .toolbar {
             if let openDrawer = openDrawer ?? splitSidebar.toggle {
-                ToolbarItem(placement: .topBarLeading) { DrawerButton(action: openDrawer) }
+                ToolbarItem(placement: .navigationBarLeading) { DrawerButton(action: openDrawer) }
             }
             if let bot {
                 // Beside the bar's leading buttons the bar gives an item only what it asks for:
@@ -324,7 +324,7 @@ struct ConversationView: View {
             // As the web keeps 新会话 in its sidebar, the bar keeps it one tap away: no drawer
             // first. A blank conversation is already a new one, so it only shows on a started one.
             if started && bot == nil {
-                ToolbarItem(placement: .topBarLeading) {
+                ToolbarItem(placement: .navigationBarLeading) {
                     Button {
                         Haptics.tap()
                         app.newSessionRequest = NewSessionRequest(workspaceId: app.workspace(of: sessionId)?.id)
@@ -337,7 +337,7 @@ struct ConversationView: View {
             // A Bot's chat has the Bot's own title instead of the session's.
             if bot == nil {
                 if let parent = app.sessions[sessionId]?.parentId, model.subagentAddress != nil {
-                    ToolbarItem(placement: .topBarLeading) {
+                    ToolbarItem(placement: .navigationBarLeading) {
                         Button { app.open(session: parent) } label: { Image(systemName: "chevron.backward") }
                             .accessibilityLabel("返回父会话")
                     }
@@ -355,7 +355,7 @@ struct ConversationView: View {
                 }
             }
             if !blank {
-                ToolbarItemGroup(placement: .topBarTrailing) {
+                ToolbarItemGroup(placement: .navigationBarTrailing) {
                     // A Bot runs no subagents of DSH's, its scheduled tasks are on its own page, and
                     // its background jobs float over the chat's foot.
                     if bot == nil { SessionHeaderActions(sessionId: sessionId) { headerSheet = $0 } }
@@ -394,23 +394,23 @@ struct ConversationView: View {
         .sheet(isPresented: workbenchShown(sizeClass != .regular)) {
             workbenchPage(model)
                 .presentationDetents([.large])
-                .presentationCornerRadius(36)
+                .compatPresentationCornerRadius(36)
                 // A pull over the terminal is meant for its scrollback; ✕ closes the sheet.
                 .interactiveDismissDisabled(workbenchTab == .terminal)
         }
         .fullScreenCover(isPresented: Binding(get: { fullBrowser != nil }, set: { if !$0 { fullBrowser = nil } })) {
             if let fullBrowser { FullScreenBrowser(model: fullBrowser) { self.fullBrowser = nil } }
         }
-        .onChange(of: workbenchOpen) { _, open in if open, sizeClass == .regular { splitSidebar.makeRoom() } }
+        .onChangeCompat(of: workbenchOpen) { _, open in if open, sizeClass == .regular { splitSidebar.makeRoom() } }
         .focusedSceneValue(\.workbenchCommands, WorkbenchCommands(available: !blank && hasTools, toggle: toggleWorkbench, open: openWorkbench))
         // The sheet leaves the background live, so the composer keeps its focus and the
         // keyboard would stay over the sheet; an answer comes first.
-        .onChange(of: presentedInteractionId(model)) { _, id in if id != nil { dismissKeyboard() } }
+        .onChangeCompat(of: presentedInteractionId(model)) { _, id in if id != nil { dismissKeyboard() } }
         // An approval or question arriving: the one alert-like tap (as the web's warning tone).
-        .onChange(of: waitingInteraction(model)?.id) { old, new in
+        .onChangeCompat(of: waitingInteraction(model)?.id) { old, new in
             if let new, new != old { Haptics.warning() }
         }
-        .onChange(of: pendingApprovalIds, initial: true) { _, ids in
+        .onChangeCompat(of: pendingApprovalIds, initial: true) { _, ids in
             if ids.isEmpty { approvalBatch = [] } else { approvalBatch.formUnion(ids) }
         }
         .task(id: app.questionRequests[sessionId]?.map(\.eventId)) { model.syncQuestionWaits() }
@@ -449,7 +449,7 @@ struct ConversationView: View {
 
     /// The bar runs over the workbench too: centred, the title would sit on the column's edge.
     private var titlePlacement: ToolbarItemPlacement {
-        titleBesideWorkbench ? .topBarLeading : .principal
+        titleBesideWorkbench ? .navigationBarLeading : .principal
     }
 
     private var titleBesideWorkbench: Bool { sizeClass == .regular && workbenchOpen }
@@ -542,11 +542,11 @@ struct ConversationView: View {
         .frame(maxHeight: .infinity, alignment: .top)
         .contentShape(Rectangle())
         .onTapGesture { dismissKeyboard() }
-        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { heroHeight = $0 }
-        .onGeometryChange(for: CGFloat?.self) { proxy in
+        .onGeometryChangeCompat(for: CGFloat.self) { $0.size.height } action: { heroHeight = $0 }
+        .onGeometryChangeCompat(for: CGFloat?.self) { proxy in
             proxy.fold.flatMap { $0.width > $0.height ? $0.minY : nil }
         } action: { heroFold = $0 }
-        .animation(.snappy(duration: 0.2), value: showsHeadline)
+        .animation(.compatSnappy(duration: 0.2), value: showsHeadline)
     }
 
     /// Starter prompts; a tap fills the input, to send as is or to change first.
@@ -581,7 +581,6 @@ struct ConversationView: View {
             }
             .padding(.horizontal, 4)
         }
-        .scrollClipDisabled()
     }
 
     private static var suggestions: [String] {
@@ -676,8 +675,10 @@ struct TimelineAnchor: ViewModifier {
                 .defaultScrollAnchor(.bottom, for: .initialOffset)
                 .defaultScrollAnchor(.bottom, for: .sizeChanges)
                 .defaultScrollAnchor(.top, for: .alignment)
-        } else {
+        } else if #available(iOS 17.0, *) {
             content.defaultScrollAnchor(.bottom)
+        } else {
+            content
         }
     }
 }
@@ -1076,7 +1077,7 @@ private struct LoadOlderTrigger: View {
         ProgressView()
             .controlSize(.small)
             .frame(maxWidth: .infinity, minHeight: 36)
-            .onGeometryChange(for: CGFloat.self) { $0.frame(in: .global).maxY } action: { inView = $0 > scroll.top }
+            .onGeometryChangeCompat(for: CGFloat.self) { $0.frame(in: .global).maxY } action: { inView = $0 > scroll.top }
             // Again for each page: one that leaves the top in view needs the next.
             .task(id: "\(inView)-\(model.items.first?.id ?? "")") {
                 guard inView else { return }
@@ -1154,12 +1155,12 @@ private struct UserBubble: View {
                     }
                 }
                 .lineLimit(open ? nil : Self.foldedLines)
-                .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { if !open { foldedHeight = $0 } }
+                .onGeometryChangeCompat(for: CGFloat.self) { $0.size.height } action: { if !open { foldedHeight = $0 } }
                 .background(alignment: .topLeading) {
                     Text(text)
                         .fixedSize(horizontal: false, vertical: true)
                         .hidden()
-                        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { fullHeight = $0 }
+                        .onGeometryChangeCompat(for: CGFloat.self) { $0.size.height } action: { fullHeight = $0 }
                 }
                 .font(.callout)
                 .lineSpacing(3)
@@ -1174,7 +1175,7 @@ private struct UserBubble: View {
                     }
                 }
                 if open || more {
-                    Button { withAnimation(.snappy) { open.toggle() } } label: {
+                    Button { withAnimation(.compatSnappy) { open.toggle() } } label: {
                         Text(open ? "收起" : "全文").font(.footnote.weight(.semibold)).foregroundStyle(Palette.ink).padding(.trailing, 6)
                     }
                     .buttonStyle(.plain)
@@ -1301,7 +1302,7 @@ struct AssistantTurnView: View {
                     guard arrives, !landed else { return }
                     // As the user's own bubble does: after the pass that laid the row out.
                     await Task.yield()
-                    withAnimation(.smooth(duration: 0.45)) { landed = true }
+                    withAnimation(.compatSmooth(duration: 0.45)) { landed = true }
                 }
             }
             if finished {
@@ -1484,7 +1485,7 @@ struct ReasoningSheet: View {
             .navigationTitle("思考")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
+                ToolbarItem(placement: .navigationBarLeading) {
                     Button { copyToPasteboard(text) } label: { Image(systemName: "doc.on.doc") }
                         .accessibilityLabel("复制")
                 }
@@ -1576,17 +1577,17 @@ private struct ApprovalReasonText: View {
         let more = fullHeight > clippedHeight + 1
         Button {
             guard open || more else { return }
-            withAnimation(.snappy) { open.toggle() }
+            withAnimation(.compatSnappy) { open.toggle() }
         } label: {
             VStack(alignment: .leading, spacing: 4) {
                 Text(text)
                     .lineLimit(open ? nil : 2)
-                    .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { if !open { clippedHeight = $0 } }
+                    .onGeometryChangeCompat(for: CGFloat.self) { $0.size.height } action: { if !open { clippedHeight = $0 } }
                     .background(alignment: .topLeading) {
                         Text(text)
                             .fixedSize(horizontal: false, vertical: true)
                             .hidden()
-                            .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { fullHeight = $0 }
+                            .onGeometryChangeCompat(for: CGFloat.self) { $0.size.height } action: { fullHeight = $0 }
                     }
                 if open || more {
                     Text(open ? "收起" : "全文").font(.footnote.weight(.semibold)).foregroundStyle(Palette.ink)
@@ -1618,11 +1619,11 @@ private struct CommandBlock: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, 16)
                     .padding(.vertical, 14)
-                    .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { height = $0 }
+                    .onGeometryChangeCompat(for: CGFloat.self) { $0.size.height } action: { height = $0 }
             }
             .frame(height: min(height, limit))
-            .scrollBounceBehavior(.basedOnSize)
-            .scrollIndicatorsFlash(onAppear: true)
+            .compatScrollBounceBehavior()
+            .compatScrollIndicatorsFlash()
             .background(Palette.field, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
             if height > limit {
                 Text("内容较长，滑动查看全部").font(.caption).foregroundStyle(Palette.secondary)
@@ -1668,7 +1669,7 @@ private struct WorkbenchBeside<Page: View>: ViewModifier {
                     .transition(.move(edge: .trailing))
                 }
             }
-            .animation(.snappy(duration: 0.3), value: shown && regular)
+            .animation(.compatSnappy(duration: 0.3), value: shown && regular)
         }
     }
 }

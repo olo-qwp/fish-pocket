@@ -8,7 +8,7 @@ import WebKit
 /// push, files open their preview; files this session changed are marked. The
 /// listing follows `workspaceFiles/changes` while on screen (S-75).
 struct DirectoryView: View {
-    @Environment(AppModel.self) private var app
+    @EnvironmentObject private var app: AppModel
     let sessionId: String
     let path: String
     let title: String
@@ -68,9 +68,9 @@ struct DirectoryView: View {
             if loading {
                 ProgressView()
             } else if entries.isEmpty && error == nil {
-                ContentUnavailableView("空文件夹", systemImage: "folder")
+                CompatContentUnavailableView("空文件夹", systemImage: "folder")
             } else if shown.isEmpty && error == nil {
-                ContentUnavailableView.search(text: query)
+                CompatContentUnavailableView.search(text: query)
             }
         }
         .navigationTitle(title)
@@ -192,7 +192,7 @@ struct FilePreviewSheet: View {
 /// straight from disk; text goes through `workspaceFiles/read`, page by page.
 /// `lines` (from a `#L24-L30` link) is highlighted and scrolled to.
 struct FileContentView: View {
-    @Environment(AppModel.self) private var app
+    @EnvironmentObject private var app: AppModel
     let sessionId: String
     let path: String
     let root: String?
@@ -250,7 +250,7 @@ struct FileContentView: View {
         .navigationBarTitleDisplayMode(.inline)
         .safeAreaInset(edge: .top, spacing: 0) { banner }
         .toolbar {
-            ToolbarItem(placement: .topBarTrailing) { actions }
+            ToolbarItem(placement: .navigationBarTrailing) { actions }
         }
         .quickLookPreview($preview)
         .task(id: LoadKey(renderer: renderer, revision: revision)) { await load() }
@@ -300,7 +300,7 @@ struct FileContentView: View {
     }
 
     private func failed(_ failure: FileFailure) -> some View {
-        ContentUnavailableView {
+        CompatContentUnavailableView {
             Label("无法打开文件", systemImage: "doc.questionmark")
         } description: {
             Text(failure.message)
@@ -348,7 +348,7 @@ struct FileContentView: View {
                 .padding(.vertical)
             }
             // Short files start at the top left instead of being centred.
-            .defaultScrollAnchor(.topLeading)
+            .compatDefaultScrollAnchor(.topLeading)
             .refreshable { reload() }
             .onAppear { if let lines { proxy.scrollTo(lines.lowerBound, anchor: .center) } }
         }
@@ -670,7 +670,7 @@ struct ZoomableImage: View {
             if let image {
                 ZoomingImageView(image: image).ignoresSafeArea(edges: .bottom)
             } else if failed {
-                ContentUnavailableView("无法显示这张图片", systemImage: "photo")
+                CompatContentUnavailableView("无法显示这张图片", systemImage: "photo")
             } else {
                 ProgressView()
             }
@@ -790,12 +790,12 @@ struct PDFPreview: View {
         Group {
             if let document {
                 if document.isLocked {
-                    ContentUnavailableView("此 PDF 需要密码，暂不支持预览", systemImage: "lock.doc")
+                    CompatContentUnavailableView("此 PDF 需要密码，暂不支持预览", systemImage: "lock.doc")
                 } else {
                     PDFKitView(document: document).ignoresSafeArea(edges: .bottom)
                 }
             } else if failed {
-                ContentUnavailableView("无法显示 PDF", systemImage: "doc.richtext")
+                CompatContentUnavailableView("无法显示 PDF", systemImage: "doc.richtext")
             } else {
                 ProgressView()
             }

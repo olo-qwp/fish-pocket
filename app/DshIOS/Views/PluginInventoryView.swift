@@ -5,7 +5,7 @@ import SwiftUI
 /// the Agent presets' rosters; global plugins are shared by the system and every
 /// session. Read once per visit, as on the web.
 struct PluginInventoryPage: View {
-    @Environment(AppModel.self) private var app
+    @EnvironmentObject private var app: AppModel
     @State private var snapshot: JSON?
     @State private var failed = false
     @State private var query = ""
@@ -24,7 +24,7 @@ struct PluginInventoryPage: View {
             if let snapshot {
                 list(snapshot)
             } else if failed {
-                ContentUnavailableView {
+                CompatContentUnavailableView {
                     Label("暂时无法读取插件。", systemImage: "exclamationmark.triangle")
                 } actions: {
                     Button("重试") { Task { await load() } }
@@ -164,7 +164,7 @@ private struct InventoryCard: View {
             if expanded { details }
         }
         .contentShape(Rectangle())
-        .onTapGesture { withAnimation(.snappy) { expanded.toggle() } }
+        .onTapGesture { withAnimation(.compatSnappy) { expanded.toggle() } }
     }
 
     @ViewBuilder

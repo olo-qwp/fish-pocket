@@ -17,21 +17,21 @@ struct PinnedActionsSheet<Content: View, Actions: View>: View {
 
     var body: some View {
         ScrollView {
-            content().onGeometryChange(for: CGFloat.self) { $0.size.height } action: { contentHeight = $0 }
+            content().onGeometryChangeCompat(for: CGFloat.self) { $0.size.height } action: { contentHeight = $0 }
         }
-        .scrollBounceBehavior(.basedOnSize)
+        .compatScrollBounceBehavior()
         .safeAreaInset(edge: .bottom, spacing: 0) {
             actions()
-                .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { actionsHeight = $0 }
+                .onGeometryChangeCompat(for: CGFloat.self) { $0.size.height } action: { actionsHeight = $0 }
                 .background(Palette.background)
         }
         // Sized to the sheet's real edge; the actions carry their own margin above the home indicator.
         .ignoresSafeArea(typing ? .container : .all, edges: .bottom)
         .presentationDetents([.height(contentHeight + actionsHeight)])
-        .presentationCornerRadius(36)
+        .compatPresentationCornerRadius(36)
         .presentationDragIndicator(.visible)
-        .presentationBackground(Palette.background)
-        .presentationBackgroundInteraction(.enabled)
+        .compatPresentationBackground(Palette.background)
+        .compatPresentationBackgroundInteraction()
     }
 }
 
@@ -61,8 +61,8 @@ struct QuestionSheet: View {
             footer(current).padding(EdgeInsets(top: 8, leading: 22, bottom: 10, trailing: 22))
         }
         .onAppear(perform: preselectRecommended)
-        .onChange(of: customFocused) { _, focused in model.setAnswerFocus(question, focused: focused) }
-        .onChange(of: question.eventId) { _, _ in failure = nil }
+        .onChangeCompat(of: customFocused) { _, focused in model.setAnswerFocus(question, focused: focused) }
+        .onChangeCompat(of: question.eventId) { _, _ in failure = nil }
     }
 
     // MARK: Pages
@@ -98,7 +98,7 @@ struct QuestionSheet: View {
     private func move(to page: Int) {
         customFocused = false
         failure = nil
-        withAnimation(.snappy(duration: 0.2)) { update { $0.index = page } }
+        withAnimation(.compatSnappy(duration: 0.2)) { update { $0.index = page } }
     }
 
     // MARK: Parts
@@ -178,7 +178,7 @@ struct QuestionSheet: View {
             answer.skipped = false
             draft.answers[q.id] = answer
         }
-        withAnimation(.snappy(duration: 0.2)) {
+        withAnimation(.compatSnappy(duration: 0.2)) {
             if open { openOthers.remove(q.id) } else { openOthers.insert(q.id) }
         }
         if open {

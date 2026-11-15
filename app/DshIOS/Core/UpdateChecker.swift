@@ -1,5 +1,5 @@
 import Foundation
-import Observation
+import Combine
 
 /// Version numbers as `MARKETING_VERSION` and the release tags write them: `1.2.0`, `v1.2.0`.
 enum AppVersion {
@@ -32,8 +32,8 @@ struct AppUpdate: Equatable {
 /// Store comes first: once the app is listed there, it answers for everyone. Until
 /// then GitHub Releases does, except for builds Apple delivered (TestFlight, review),
 /// which never point at a download outside the store.
-@MainActor @Observable
-final class UpdateChecker {
+@MainActor 
+final class UpdateChecker: ObservableObject {
     enum Status: Equatable { case idle, checking, upToDate, failed, available(AppUpdate) }
 
     static let shared = UpdateChecker()
@@ -45,8 +45,8 @@ final class UpdateChecker {
     private static let interval: TimeInterval = 24 * 60 * 60
     private static let announcedKey = "dsh.update.announced"
 
-    private(set) var status = Status.idle
-    private var lastChecked: Date?
+    @Published private(set) var status = Status.idle
+    @Published private var lastChecked: Date?
 
     private enum Latest {
         case release(version: String, url: URL)

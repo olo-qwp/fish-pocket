@@ -8,54 +8,53 @@ import WebKit
 /// it and take over. That is why a page belongs to its conversation's `BrowserModel` rather than to a view: the
 /// agent can open one before the user ever looks at the workbench.
 @MainActor
-@Observable
-final class BrowserPage: NSObject {
-    var address = ""
+final class BrowserPage: NSObject, ObservableObject {
+    @Published var address = ""
     /// The refused address's reason, shown under the bar.
-    var addressError: String?
-    private(set) var started = false
-    private(set) var canGoBack = false
-    private(set) var canGoForward = false
-    private(set) var loading = false
-    private(set) var failure: String?
+    @Published var addressError: String?
+    @Published private(set) var started = false
+    @Published private(set) var canGoBack = false
+    @Published private(set) var canGoForward = false
+    @Published private(set) var loading = false
+    @Published private(set) var failure: String?
     /// The last address this page went to.
-    private(set) var lastURL: String?
+    @Published private(set) var lastURL: String?
     /// The page's own title, once it has one.
-    private(set) var title: String?
+    @Published private(set) var title: String?
     /// What is on screen now, for the bar's menu.
-    private(set) var page: URL?
+    @Published private(set) var page: URL?
     /// The page on screen came as the site's desktop version, as WebKit settled it.
-    private(set) var desktop = false
+    @Published private(set) var desktop = false
     /// The agent is in the middle of an operation on this page.
-    private(set) var agentBusy = false
+    @Published private(set) var agentBusy = false
     /// A passing word under the page, such as a finished download.
-    private(set) var notice: String?
+    @Published private(set) var notice: String?
 
     /// The conversation this browser belongs to: downloads go to its working directory.
-    @ObservationIgnored let sessionId: String
+    let sessionId: String
     /// The conversation's browser this page is a tab of: its kept scripts run here too, and its
     /// downloads are listed there.
-    @ObservationIgnored weak var browser: BrowserModel?
+    weak var browser: BrowserModel?
     /// What the pages wrote to the console, and the requests their scripts made (`logs`).
-    @ObservationIgnored var consoleLog: [[String: Any]] = []
-    @ObservationIgnored var networkLog: [[String: Any]] = []
-    @ObservationIgnored var logSeq = 0
-    @ObservationIgnored var cachedUserAgent: String?
+    var consoleLog: [[String: Any]] = []
+    var networkLog: [[String: Any]] = []
+    var logSeq = 0
+    var cachedUserAgent: String?
     /// This page's downloads still coming, by their place in the browser's list.
-    @ObservationIgnored var downloadTasks: [ObjectIdentifier: Int] = [:]
-    @ObservationIgnored private var noticeTimer: Task<Void, Never>?
+    var downloadTasks: [ObjectIdentifier: Int] = [:]
+    private var noticeTimer: Task<Void, Never>?
 
-    @ObservationIgnored let webView: WKWebView
-    @ObservationIgnored let origin: URL
-    @ObservationIgnored private var observations: [NSKeyValueObservation] = []
+    let webView: WKWebView
+    let origin: URL
+    private var observations: [NSKeyValueObservation] = []
     /// Why the last load failed, as WebKit said it, for the agent; `failure` is the user's sentence.
-    @ObservationIgnored private(set) var loadFailure: NSError?
+    private(set) var loadFailure: NSError?
     /// The agent's operations, one after another: two at once would read a page the other is changing.
-    @ObservationIgnored private var tail: Task<Void, Never>?
+    private var tail: Task<Void, Never>?
     /// The agent at work on this page, drawn over it in the workbench.
-    @ObservationIgnored let presence = BrowserPresence()
+    let presence = BrowserPresence()
     /// The address or title changed: the tab set is kept again.
-    @ObservationIgnored var changed: (() -> Void)?
+    var changed: (() -> Void)?
 
     /// Every tab of every conversation's browser shares one store of its own, kept across launches, so a site
     /// signed in to once stays signed in, for the user and for the agent. It is apart from the default store,
@@ -176,7 +175,7 @@ final class BrowserPage: NSObject {
     }
 
     /// The effects as last asked for; a page that loads afresh gets them again.
-    @ObservationIgnored private var effects = PageEffects(shown: false, action: nil, done: true)
+    private var effects = PageEffects(shown: false, action: nil, done: true)
 
     func showEffects(_ effects: PageEffects) {
         self.effects = effects
@@ -412,14 +411,14 @@ struct WorkbenchBrowser: View {
                 Palette.background.onAppear { model.reviveSelected() }
             }
         }
-        .onChange(of: model.selectedId) { _, _ in model.reviveSelected() }
+        .onChangeCompat(of: model.selectedId) { _, _ in model.reviveSelected() }
     }
 }
 
 /// One tab on screen: its page (or where to start), and the bar under it.
 private struct BrowserPageView: View {
     let model: BrowserModel
-    @Bindable var page: BrowserPage
+    @ObservedObject var page: BrowserPage
     @FocusState private var editing: Bool
     @State private var confirmingClear = false
     @State private var showingTabs = false
@@ -453,7 +452,7 @@ private struct BrowserPageView: View {
         }
         .sheet(isPresented: $showingTabs) { BrowserTabsSheet(model: model) }
         .onAppear(perform: takeFocus)
-        .onChange(of: showingTabs) { _, showing in if !showing { takeFocus() } }
+        .onChangeCompat(of: showingTabs) { _, showing in if !showing { takeFocus() } }
     }
 
     /// A blank tab the user just opened: the cursor goes to its address bar, once nothing covers it.

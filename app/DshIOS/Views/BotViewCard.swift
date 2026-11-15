@@ -4,7 +4,7 @@ import SwiftUI
 /// A card a Bot sent with `show_view` and waits on: its content drawn natively, its inputs
 /// and answer parts (options, a confirm, a form, a submit button) sent back with `view-reply`.
 struct BotViewCard: View {
-    @Environment(AppModel.self) private var app
+    @EnvironmentObject private var app: AppModel
     let bot: BotInfo
     /// The pending view: `{id, title, view}`.
     let pending: JSON
@@ -40,9 +40,9 @@ struct BotViewCard: View {
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { contentHeight = $0 }
+                .onGeometryChangeCompat(for: CGFloat.self) { $0.size.height } action: { contentHeight = $0 }
             }
-            .scrollBounceBehavior(.basedOnSize)
+            .compatScrollBounceBehavior()
             .frame(height: min(max(contentHeight, 1), 420))
         }
         .disabled(sending)

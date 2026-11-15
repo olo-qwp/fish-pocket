@@ -1,7 +1,7 @@
 import ActivityKit
 import Foundation
-import Observation
 import SwiftUI
+import Combine
 
 /// Mirrors agent work onto one Live Activity while the user is away from it: the phone's own
 /// sessions, and the ones on a computer that the phone answers for (`RemoteStore.attention`).
@@ -22,6 +22,8 @@ final class LiveActivityController {
     static let shared = LiveActivityController()
 
     private weak var app: AppModel?
+    /// The model changes this controller follows (see `AppModel.changePublisher`).
+    private var observation: AnyCancellable?
     private var activity: Activity<DshActivityAttributes>?
     private var last: State?
     private var cleaned = false
@@ -72,10 +74,17 @@ final class LiveActivityController {
     /// Re-derive on every change of what the state reads (sessions, approvals, projections).
     private func observe() {
         guard let app else { return }
-        let next = withObservationTracking { Self.state(of: app) } onChange: { [weak self] in
-            Task { @MainActor in self?.observe() }
+        if observation == nil {
+            observation = AppModel.changePublisher(app).sink { [weak self] _ in
+                Task { @MainActor in self?.refresh() }
+            }
         }
-        apply(next)
+        apply(Self.state(of: app))
+    }
+
+    private func refresh() {
+        guard let app else { return }
+        apply(Self.state(of: app))
     }
 
     private func apply(_ next: State?) {

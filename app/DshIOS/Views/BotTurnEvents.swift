@@ -4,7 +4,7 @@ import SwiftUI
 /// stopped, a Bot or group it made, what it remembered, a chart it showed, a question that
 /// closed unanswered. The calls themselves stay in the folded steps like any tool call.
 struct BotTurnEvents: View {
-    @Environment(AppModel.self) private var app
+    @EnvironmentObject private var app: AppModel
     @Environment(\.botComposer) private var composer
     let blocks: [AssistantBlock]
     @State private var exchange: BotExchangePair?
@@ -224,7 +224,7 @@ struct BotExchangePair: Identifiable, Hashable {
 /// What two Bots said to each other: the requests, replies and reports that never show in
 /// either one's chat with the user.
 struct BotExchangeSheet: View {
-    @Environment(AppModel.self) private var app
+    @EnvironmentObject private var app: AppModel
     @Environment(\.dismiss) private var dismiss
     let pair: BotExchangePair
     @State private var entries: [JSON] = []
@@ -250,7 +250,7 @@ struct BotExchangeSheet: View {
                     .padding(20)
                     .modifier(LinkOpening())
                 }
-                .onChange(of: entries.count) { _, _ in proxy.scrollTo("end") }
+                .onChangeCompat(of: entries.count) { _, _ in proxy.scrollTo("end") }
             }
             .background(Palette.background)
             .navigationTitle([a?.name, b?.name].compactMap { $0 }.joined(separator: " ⇄ "))

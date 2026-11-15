@@ -1,6 +1,6 @@
 import Foundation
-import Observation
 import WidgetKit
+import Combine
 
 /// Keeps the widgets' snapshot (`WidgetSnapshot`) in step with the app: rewritten
 /// shortly after what it shows changes, and confirmed every few minutes while work
@@ -22,6 +22,8 @@ final class WidgetSnapshotWriter {
     private static let heartbeat = Duration.seconds(10 * 60)
 
     private weak var app: AppModel?
+    /// The model changes this follows (see `AppModel.changePublisher`).
+    private var observation: AnyCancellable?
     /// The content last written, `writtenAt` aside.
     private var written: WidgetSnapshot?
     private var wanted: WidgetSnapshot?
@@ -45,10 +47,12 @@ final class WidgetSnapshotWriter {
 
     private func observe() {
         guard let app else { return }
-        let next = withObservationTracking { Self.snapshot(of: app) } onChange: { [weak self] in
-            Task { @MainActor in self?.observe() }
+        if observation == nil {
+            observation = AppModel.changePublisher(app).sink { [weak self] _ in
+                Task { @MainActor in self?.refresh() }
+            }
         }
-        apply(next)
+        refresh()
     }
 
     private func apply(_ snapshot: WidgetSnapshot) {

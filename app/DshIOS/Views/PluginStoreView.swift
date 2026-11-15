@@ -3,11 +3,11 @@ import SwiftUI
 /// 插件: browse a market and manage what is installed. It reads the same market and plugin models
 /// as 设置 → 插件, which stays as it is until this page replaces it.
 struct PluginStoreView: View {
-    @Environment(AppModel.self) private var app
+    @EnvironmentObject private var app: AppModel
     /// The sidebar button, where this page is the split view's detail.
     var openSidebar: (() -> Void)?
     @AppStorage("dsh.store.tab") private var tab = "discover"
-    @State private var model = PluginStoreModel()
+    @StateObject private var model = PluginStoreModel()
     @State private var managing = false
     @State private var searching = false
 
@@ -23,12 +23,12 @@ struct PluginStoreView: View {
             }
         }
         .background(Palette.background)
-        .animation(.snappy(duration: 0.2), value: searching)
+        .animation(.compatSnappy(duration: 0.2), value: searching)
         .navigationTitle("插件")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            if let openSidebar { ToolbarItem(placement: .topBarLeading) { DrawerButton(action: openSidebar) } }
-            ToolbarItem(placement: .topBarTrailing) { menu }
+            if let openSidebar { ToolbarItem(placement: .navigationBarLeading) { DrawerButton(action: openSidebar) } }
+            ToolbarItem(placement: .navigationBarTrailing) { menu }
         }
         .sheet(isPresented: $managing) { StoreSourcesSheet(model: model) }
         .task(id: app.revision()) { await model.prepare(app) }
@@ -41,7 +41,7 @@ struct PluginStoreView: View {
             guard model.readiness == .ready else { return }
             await model.market.loadIndexes(app)
         }
-        .onChange(of: manager.marketEnabled) { _, enabled in if !enabled { model.marketTurnedOff() } }
+        .onChangeCompat(of: manager.marketEnabled) { _, enabled in if !enabled { model.marketTurnedOff() } }
         .followSettings()
     }
 
@@ -113,7 +113,7 @@ struct PluginStoreView: View {
 // MARK: - 发现
 
 private struct StoreDiscoverPage: View {
-    @Environment(AppModel.self) private var app
+    @EnvironmentObject private var app: AppModel
     let model: PluginStoreModel
     @Binding var searching: Bool
     let manage: () -> Void
@@ -139,9 +139,9 @@ private struct StoreDiscoverPage: View {
                     .font(.footnote)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             case .unavailable:
-                ContentUnavailableView("无法管理插件", systemImage: "puzzlepiece.extension", description: Text("当前无法安装或启停插件。"))
+                CompatContentUnavailableView("无法管理插件", systemImage: "puzzlepiece.extension", description: Text("当前无法安装或启停插件。"))
             case .off:
-                ContentUnavailableView {
+                CompatContentUnavailableView {
                     Label("插件市场已关闭", systemImage: "storefront")
                 } description: {
                     Text("它的开关在「设置 → 插件 → 实验性插件」")
@@ -152,7 +152,7 @@ private struct StoreDiscoverPage: View {
                 ready
             }
         }
-        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }
+        .onGeometryChangeCompat(for: CGFloat.self) { $0.size.width } action: { width = $0 }
         .sheet(item: $choice) { StoreInstallConfirm(choice: $0, marketTitle: localized(market.result?["title"] ?? .null)) }
         .onChange(of: searchFocused) { updateSearching() }
         .onChange(of: search) { updateSearching() }
@@ -182,7 +182,7 @@ private struct StoreDiscoverPage: View {
     }
 
     private var noMarket: some View {
-        ContentUnavailableView {
+        CompatContentUnavailableView {
             Label("还没有插件市场", systemImage: "storefront")
         } description: {
             Text("恢复预置市场，或添加其他索引。")
@@ -193,7 +193,7 @@ private struct StoreDiscoverPage: View {
     }
 
     private func failure(_ retry: @escaping () async -> Void) -> some View {
-        ContentUnavailableView {
+        CompatContentUnavailableView {
             Text("无法读取插件市场").font(.title3.weight(.semibold))
         } description: {
             Text("检查网络后再试一次。已经安装的插件不受影响。")
@@ -452,7 +452,7 @@ struct StoreArt: View {
 }
 
 private struct StoreRow: View {
-    @Environment(AppModel.self) private var app
+    @EnvironmentObject private var app: AppModel
     let entry: StoreEntry
     let model: PluginStoreModel
     let wide: Bool
@@ -543,7 +543,7 @@ private struct StoreRow: View {
 
 /// Everything 设置 → 插件 lists, this store's way round: what the user added comes first.
 private struct StoreInstalledPage: View {
-    @Environment(AppModel.self) private var app
+    @EnvironmentObject private var app: AppModel
     let showDiscover: () -> Void
 
     private var manager: PluginManagerModel { app.plugins }
@@ -626,7 +626,7 @@ private struct StoreInstalledPage: View {
 
 /// 实验性插件 → 查看全部.
 private struct StoreAllExtensions: View {
-    @Environment(AppModel.self) private var app
+    @EnvironmentObject private var app: AppModel
 
     var body: some View {
         List {
@@ -640,7 +640,7 @@ private struct StoreAllExtensions: View {
 
 /// An installed or official package; its switch and removal are on the detail page it opens.
 private struct StorePackageRow: View {
-    @Environment(AppModel.self) private var app
+    @EnvironmentObject private var app: AppModel
     let package: PluginPackage
 
     var body: some View {
@@ -682,7 +682,7 @@ private struct StorePackageRow: View {
 /// The index list, written whole with `setIndexes`. The preset is an ordinary source the user may
 /// remove; a row brings it back.
 struct StoreSourcesSheet: View {
-    @Environment(AppModel.self) private var app
+    @EnvironmentObject private var app: AppModel
     @Environment(\.dismiss) private var dismiss
     let model: PluginStoreModel
     @State private var draft = ""
@@ -727,7 +727,7 @@ struct StoreSourcesSheet: View {
                         .keyboardType(.URL)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
-                        .onChange(of: draft) { _, _ in market.clearSourceFailure() }
+                        .onChangeCompat(of: draft) { _, _ in market.clearSourceFailure() }
                     if let failure = failureText { Text(failure).font(.caption).foregroundStyle(Palette.removed) }
                     Button("添加") {
                         let url = draft.trimmingCharacters(in: .whitespaces)

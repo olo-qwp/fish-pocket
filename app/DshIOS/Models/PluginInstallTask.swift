@@ -1,5 +1,4 @@
 import Foundation
-import Observation
 import SwiftUI
 
 /// Which npm registry an install asks: one the Host offers (nil = pnpm's own
@@ -63,65 +62,64 @@ struct InstallFailure: Equatable {
 /// `applying` (past the point of cancelling), `unconfirmed` (an answer was lost)
 /// and `unknown` (the Host has no such request).
 @MainActor
-@Observable
-final class PluginInstallTask {
+final class PluginInstallTask: ObservableObject {
     enum Phase: Equatable { case idle, checking, starting, running, cancelling, applying, unconfirmed, unknown, done, failed }
 
     static let npmmirror = "https://registry.npmmirror.com/"
     static let npmjs = "https://registry.npmjs.org/"
 
-    @ObservationIgnored unowned let app: AppModel
+    unowned let app: AppModel
 
     /// The sheet is on screen.
-    private(set) var open = false
-    var spec = ""
-    private(set) var registries: JSON?
-    var registry: RegistryChoice = .offered(nil)
-    var registryOpen = false
-    private(set) var registryError = false
-    private(set) var phase: Phase = .idle
+    @Published private(set) var open = false
+    @Published var spec = ""
+    @Published private(set) var registries: JSON?
+    @Published var registry: RegistryChoice = .offered(nil)
+    @Published var registryOpen = false
+    @Published private(set) var registryError = false
+    @Published private(set) var phase: Phase = .idle
     /// A refused spec: `{problem, reason, registries?}`.
-    private(set) var inputError: JSON?
+    @Published private(set) var inputError: JSON?
     /// What the Host read the spec as (the inspect answer) plus `spec`, `selection`, `saveExact`.
-    private(set) var subject: JSON?
+    @Published private(set) var subject: JSON?
     /// A market entry's title and version, shown instead of the form (MK-08).
-    private(set) var confirmed: (title: String, version: String)?
-    private(set) var runs: [InstallRun] = []
-    private(set) var attempts: (registries: [String?], total: Int)?
-    private(set) var installed: String?
-    private(set) var installedVersion: String?
+    @Published private(set) var confirmed: (title: String, version: String)?
+    @Published private(set) var runs: [InstallRun] = []
+    @Published private(set) var attempts: (registries: [String?], total: Int)?
+    @Published private(set) var installed: String?
+    @Published private(set) var installedVersion: String?
     /// False when the install added no dependency.
-    private(set) var changed = true
-    private(set) var restartRequired = false
-    private(set) var restartReason: String?
-    private(set) var failure: InstallFailure?
-    private(set) var approvedBuilds: [String] = []
-    private(set) var enabling = false
-    var detailsOpen = false
+    @Published private(set) var changed = true
+    @Published private(set) var restartRequired = false
+    @Published private(set) var restartReason: String?
+    @Published private(set) var failure: InstallFailure?
+    @Published private(set) var approvedBuilds: [String] = []
+    @Published private(set) var enabling = false
+    @Published var detailsOpen = false
     /// The GitHub-mirror recovery cleared the spec; the guide says why.
-    private(set) var mirrorRecovery = false
+    @Published private(set) var mirrorRecovery = false
     /// What each spec's last install came to. It outlives the sheet, so the plugin's page can
     /// still ask about it (询问 AI).
-    private(set) var records: [String: InstallRecord] = [:]
+    @Published private(set) var records: [String: InstallRecord] = [:]
 
-    @ObservationIgnored private(set) var requestId: String?
-    @ObservationIgnored private var acknowledged = false
-    @ObservationIgnored private var replyLost = false
-    @ObservationIgnored private var recovering = false
-    @ObservationIgnored private var cancellation: (waitingForStart: Bool, active: Bool)?
-    @ObservationIgnored private var inspectTask: Task<Void, Never>?
-    @ObservationIgnored private var registryRead: Task<Void, Never>?
+    private(set) var requestId: String?
+    private var acknowledged = false
+    private var replyLost = false
+    private var recovering = false
+    private var cancellation: (waitingForStart: Bool, active: Bool)?
+    private var inspectTask: Task<Void, Never>?
+    private var registryRead: Task<Void, Never>?
     /// A market entry chose the registry: this dialog only, never remembered.
-    @ObservationIgnored private var transientRegistry = false
+    private var transientRegistry = false
     /// A market update installs over a package it just removed: the new version keeps the old
     /// one's switch instead of asking for 立即启用.
-    @ObservationIgnored private var keptSelection: Bool?
+    private var keptSelection: Bool?
     /// An update this sheet runs (`pluginManager/updateBundle`), from one installed version to a newer one.
-    private(set) var update: (name: String, from: String, to: String)?
+    @Published private(set) var update: (name: String, from: String, to: String)?
     /// The Host's step of that update: `checking`, `removing`, `installing` or `restoring`.
-    private(set) var updateStep: String?
-    @ObservationIgnored private var updateRegistry: String?
-    @ObservationIgnored private var listener: UUID?
+    @Published private(set) var updateStep: String?
+    private var updateRegistry: String?
+    private var listener: UUID?
 
     init(app: AppModel) {
         self.app = app

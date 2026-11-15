@@ -150,8 +150,8 @@ struct VoiceHoldOverlay: View {
             }
         }
         // Pressing answers at once; only letting go eases out.
-        .animation(voice.holding ? .easeOut(duration: 0.08) : .snappy(duration: 0.2), value: voice.holding)
-        .animation(.snappy(duration: 0.18), value: voice.cancelArmed)
+        .animation(voice.holding ? .easeOut(duration: 0.08) : .compatSnappy(duration: 0.2), value: voice.holding)
+        .animation(.compatSnappy(duration: 0.18), value: voice.cancelArmed)
         .allowsHitTesting(false)
     }
 

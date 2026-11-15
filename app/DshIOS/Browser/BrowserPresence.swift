@@ -1,5 +1,6 @@
 import UIKit
 import WebKit
+import Combine
 
 /// Whether the agent is at work in a conversation's browser, for the page to show page-agent's
 /// own effects (its glowing mask, pointer and panel; `entry.js`) and to take them down.
@@ -8,22 +9,21 @@ import WebKit
 /// browser alone for a while, or the user touches the page. A touch is the user taking over, so
 /// everything goes at once; the agent's next operation brings it back.
 @MainActor
-@Observable
-final class BrowserPresence {
+final class BrowserPresence: ObservableObject {
     enum Action: String {
         case open, read, click, type, select, scroll, back, forward, reload, evaluate, screenshot
     }
 
     /// The session whose agent is at the page, while it is shown.
-    private(set) var driver: String?
+    @Published private(set) var driver: String?
     /// The operation running now; nil between two.
-    private(set) var action: Action?
+    @Published private(set) var action: Action?
     /// The user's hand ended it, rather than the agent finishing.
-    private(set) var takenOver = false
+    @Published private(set) var takenOver = false
 
     /// The panel's stop button: ends the agent's turn.
-    @ObservationIgnored var stop: (() -> Void)?
-    @ObservationIgnored private var idle: Task<Void, Never>?
+    var stop: (() -> Void)?
+    private var idle: Task<Void, Never>?
 
     /// The agent leaves the page for this long between operations only to think; longer, it has
     /// moved on to something else.

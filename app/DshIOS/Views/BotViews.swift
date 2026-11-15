@@ -11,7 +11,7 @@ enum BotRoute: Hashable {
 /// Bot is doing, and the large ones blink and fidget at rest; the rest stay still, so a long
 /// page does not run dozens of animations.
 struct BotAvatar: View {
-    @Environment(AppModel.self) private var app
+    @EnvironmentObject private var app: AppModel
     let bot: BotInfo?
     /// Shown by its first character when the Bot is not on the team (any more).
     var name: String?
@@ -86,7 +86,7 @@ enum BotPicture {
 
 /// Two members overlapping, for a group chat.
 struct RoomAvatar: View {
-    @Environment(AppModel.self) private var app
+    @EnvironmentObject private var app: AppModel
     let room: RoomInfo
     var size: CGFloat = 40
 
@@ -115,7 +115,7 @@ struct RoomAvatar: View {
 /// main Bot's face where they have an icon, and on the right the one thing that matters most
 /// right now — what waits on the user, then who is working, then news.
 struct BotDrawerEntry: View {
-    @Environment(AppModel.self) private var app
+    @EnvironmentObject private var app: AppModel
 
     var body: some View {
         let team = app.botTeam
@@ -279,7 +279,7 @@ extension BotModel {
 
 /// The Bot page: the team's Bots and group chats, or the way to switch the feature on.
 struct BotHomeView: View {
-    @Environment(AppModel.self) private var app
+    @EnvironmentObject private var app: AppModel
     let openDrawer: (() -> Void)?
     @State private var creating: CreateKind?
     @State private var settingsOpen = false
@@ -313,9 +313,9 @@ struct BotHomeView: View {
         .navigationTitle("Bot")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            if let openDrawer { ToolbarItem(placement: .topBarLeading) { DrawerButton(action: openDrawer) } }
+            if let openDrawer { ToolbarItem(placement: .navigationBarLeading) { DrawerButton(action: openDrawer) } }
             if team.status == .ready {
-                ToolbarItem(placement: .topBarTrailing) {
+                ToolbarItem(placement: .navigationBarTrailing) {
                     Menu {
                         Button { creating = .bot } label: { Label("新建 Bot", systemImage: "person.badge.plus") }
                         Button { creating = .room } label: { Label("新建群聊", systemImage: "person.2") }
@@ -499,7 +499,7 @@ struct BotHomeView: View {
             if hiddenCount > 0 && needle.isEmpty {
                 Section {
                     Button(showHidden ? String(localized: "收起已隐藏的") : String(localized: "显示 \(hiddenCount) 个已隐藏的")) {
-                        withAnimation(.snappy) { showHidden.toggle() }
+                        withAnimation(.compatSnappy) { showHidden.toggle() }
                     }
                     .font(.footnote)
                     .foregroundStyle(Palette.secondary)
@@ -547,7 +547,7 @@ struct BotHomeView: View {
 
 /// Shown until the plugin answers: switch it on, or say why the pages cannot open.
 struct BotSetupView: View {
-    @Environment(AppModel.self) private var app
+    @EnvironmentObject private var app: AppModel
 
     var body: some View {
         let team = app.botTeam
@@ -576,7 +576,7 @@ struct BotSetupView: View {
             .readableWidth()
         }
         .safeAreaInset(edge: .bottom) { action.padding(.horizontal, 20).padding(.bottom, 12).background(Palette.background) }
-        .onChange(of: team.status) { _, status in if status == .ready { Haptics.success() } }
+        .onChangeCompat(of: team.status) { _, status in if status == .ready { Haptics.success() } }
     }
 
     @ViewBuilder
@@ -624,7 +624,7 @@ struct BotSetupView: View {
 
 /// A look for a Bot without a photo: one of the characters in one of the team's colours.
 struct BotLookPicker: View {
-    @Environment(AppModel.self) private var app
+    @EnvironmentObject private var app: AppModel
     /// A character's id; anything else (a photo, the app's mascot): none of these is picked.
     @Binding var shape: String?
     @Binding var color: String?
@@ -666,6 +666,22 @@ struct BotLookPicker: View {
     }
 }
 
+/// Pops the look when it changes or is poked: iOS 16 has no `phaseAnimator`.
+private struct PokePop: ViewModifier {
+    let trigger: String
+    @State private var popped = false
+
+    func body(content: Content) -> some View {
+        content
+            .scaleEffect(popped ? 1.14 : 1)
+            .rotationEffect(.degrees(popped ? -9 : 0))
+            .onChange(of: trigger) { _ in
+                withAnimation(.spring(response: 0.16, dampingFraction: 0.7)) { popped = true }
+                withAnimation(.spring(response: 0.42, dampingFraction: 0.42).delay(0.16)) { popped = false }
+            }
+    }
+}
+
 /// The look being picked, large: it pops as the look changes, and spins when poked.
 struct BotLookPreview: View {
     let shape: String?
@@ -677,11 +693,7 @@ struct BotLookPreview: View {
         Button { Haptics.tap(); poke += 1 } label: {
             BotMark(character: BotCharacter.named(shape) ?? BotCharacter.all[0], color: BotInk.color(color) ?? Palette.secondary, size: 104,
                     mood: mood, lively: true, seed: shape ?? "", poke: poke)
-                .phaseAnimator([false, true], trigger: [shape, color]) { mark, popped in
-                    mark.scaleEffect(popped ? 1.14 : 1).rotationEffect(.degrees(popped ? -9 : 0))
-                } animation: { popped in
-                    popped ? .spring(response: 0.16, dampingFraction: 0.7) : .spring(response: 0.42, dampingFraction: 0.42)
-                }
+                .modifier(PokePop(trigger: "\(shape ?? "")-\(color ?? "")-\(poke)"))
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 12)
                 .contentShape(Rectangle())
@@ -692,7 +704,7 @@ struct BotLookPreview: View {
 }
 
 struct BotCreateSheet: View {
-    @Environment(AppModel.self) private var app
+    @EnvironmentObject private var app: AppModel
     @Environment(\.dismiss) private var dismiss
     @State private var name = ""
     @State private var role = ""
@@ -769,7 +781,7 @@ struct BotCreateSheet: View {
 
 /// A new group: who is in it, who takes plain messages first, and what to start with.
 struct RoomCreateSheet: View {
-    @Environment(AppModel.self) private var app
+    @EnvironmentObject private var app: AppModel
     @Environment(\.dismiss) private var dismiss
     @State private var name = ""
     @State private var members: [String] = []

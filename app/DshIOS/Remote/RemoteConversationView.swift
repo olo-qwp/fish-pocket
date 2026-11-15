@@ -9,7 +9,7 @@ struct RemoteConversationView: View {
     @Binding var selection: String?
     /// Opens the drawer; nil where the sidebar is always shown (iPad).
     var openDrawer: (() -> Void)?
-    @Environment(AppModel.self) private var app
+    @EnvironmentObject private var app: AppModel
     @Environment(\.scenePhase) private var scenePhase
     @State private var model: RemoteSessionModel?
     @State private var atBottom = true
@@ -33,7 +33,7 @@ struct RemoteConversationView: View {
                 content(model)
             } else {
                 ConversationLoading().background(Palette.background)
-                    .toolbar { if let openDrawer { ToolbarItem(placement: .topBarLeading) { DrawerButton(action: openDrawer) } } }
+                    .toolbar { if let openDrawer { ToolbarItem(placement: .navigationBarLeading) { DrawerButton(action: openDrawer) } } }
             }
         }
         .task(id: app.remote.signedIn) {
@@ -51,7 +51,7 @@ struct RemoteConversationView: View {
     private func scrollToBottom(_ proxy: ScrollViewProxy, animated: Bool = true) {
         Task { @MainActor in
             if animated {
-                withAnimation(.snappy(duration: 0.2)) { proxy.scrollTo(Self.bottomId, anchor: .bottom) }
+                withAnimation(.compatSnappy(duration: 0.2)) { proxy.scrollTo(Self.bottomId, anchor: .bottom) }
             } else {
                 proxy.scrollTo(Self.bottomId, anchor: .bottom)
             }
@@ -72,16 +72,16 @@ struct RemoteConversationView: View {
                     proxy.scrollTo(id, anchor: .top)
                 }
             }, top: timelineTop))
-            .onGeometryChange(for: CGFloat.self) { $0.frame(in: .global).minY } action: { timelineTop = $0 }
+            .onGeometryChangeCompat(for: CGFloat.self) { $0.frame(in: .global).minY } action: { timelineTop = $0 }
             .modifier(TimelineAnchor())
             .modifier(BottomFollow(atBottom: $atBottom) { scrollToBottom(proxy, animated: false) })
             .scrollDismissesKeyboard(.immediately)
-            .scrollBounceBehavior(.always)
+            .compatScrollBounceBehavior(always: true)
             .simultaneousGesture(TapGesture().onEnded { dismissKeyboard() })
-            .onChange(of: model.rows.last?.id) { _, _ in
+            .onChangeCompat(of: model.rows.last?.id) { _, _ in
                 if case .user? = model.rows.last { atBottom = true; scrollToBottom(proxy) }
             }
-            .onChange(of: model.busy) { _, busy in if busy, atBottom { scrollToBottom(proxy) } }
+            .onChangeCompat(of: model.busy) { _, busy in if busy, atBottom { scrollToBottom(proxy) } }
             .overlay(alignment: .bottomTrailing) {
                 ZStack {
                     if !atBottom, !model.rows.isEmpty {
@@ -94,7 +94,7 @@ struct RemoteConversationView: View {
                         .transition(.opacity.combined(with: .scale(scale: 0.8)))
                     }
                 }
-                .animation(.snappy(duration: 0.18), value: atBottom)
+                .animation(.compatSnappy(duration: 0.18), value: atBottom)
             }
         }
         .background(Palette.background)
@@ -105,7 +105,7 @@ struct RemoteConversationView: View {
                 .padding(.top, 6)
                 .padding(.bottom, 8)
                 .readableWidth()
-                .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { app.composerHeight = $0 }
+                .onGeometryChangeCompat(for: CGFloat.self) { $0.size.height } action: { app.composerHeight = $0 }
         }
         .navigationTitle(model.meta?.displayTitle ?? "")
         .navigationBarTitleDisplayMode(.inline)
@@ -113,10 +113,10 @@ struct RemoteConversationView: View {
         .toolbar(.visible, for: .navigationBar)
         .toolbar {
             if let openDrawer {
-                ToolbarItem(placement: .topBarLeading) { DrawerButton(action: openDrawer) }
+                ToolbarItem(placement: .navigationBarLeading) { DrawerButton(action: openDrawer) }
             }
             if let meta = model.meta {
-                ToolbarItem(placement: .topBarLeading) {
+                ToolbarItem(placement: .navigationBarLeading) {
                     Button {
                         Haptics.tap()
                         app.remoteSessionRequest = RemoteSessionTarget(deviceId: meta.deviceId, agentId: meta.agentId, projectId: meta.projectId)
@@ -127,7 +127,7 @@ struct RemoteConversationView: View {
                 }
             }
             ToolbarItem(placement: .principal) { RemoteTitleMenu(model: model) }
-            ToolbarItem(placement: .topBarTrailing) { moreMenu(model) }
+            ToolbarItem(placement: .navigationBarTrailing) { moreMenu(model) }
         }
         .environment(\.conversationActions, ConversationActions(
             openChanges: { panel = .changes },
@@ -136,13 +136,13 @@ struct RemoteConversationView: View {
                 detail = item
             }
         ))
-        .onChange(of: presented(model)?.id) { _, id in if id != nil { dismissKeyboard() } }
-        .onChange(of: waiting(model)?.id) { old, new in if let new, new != old { Haptics.warning() } }
+        .onChangeCompat(of: presented(model)?.id) { _, id in if id != nil { dismissKeyboard() } }
+        .onChangeCompat(of: waiting(model)?.id) { old, new in if let new, new != old { Haptics.warning() } }
         .onChange(of: model.optionsRequest) { panel = .options }
         // Archived from here or from another device: the main view moves on, as with a local session.
-        .onChange(of: model.meta?.archived) { _, archived in if archived == true { selection = nil } }
+        .onChangeCompat(of: model.meta?.archived) { _, archived in if archived == true { selection = nil } }
         // Read once it is on screen, and again when a turn ends while it is.
-        .onChange(of: "\(model.meta?.unread == true)-\(scenePhase == .active)", initial: true) {
+        .onChangeCompat(of: "\(model.meta?.unread == true)-\(scenePhase == .active)", initial: true) { _, _ in
             if scenePhase == .active { app.remote.markRead(sessionId) }
         }
         .sheet(item: interactionBinding(model)) { sheet(for: $0, model) }
@@ -165,7 +165,7 @@ struct RemoteConversationView: View {
         } message: { enable in
             Text(takeoverMessage(enable, model))
         }
-        .onChange(of: model.notice) { _, text in
+        .onChangeCompat(of: model.notice) { _, text in
             guard let text else { return }
             model.notice = nil
             app.showToast(text, tone: .warning)
@@ -327,7 +327,7 @@ struct RemoteConversationView: View {
 /// connection stands while it is not live. A tap opens the session's menu.
 private struct RemoteTitleMenu: View {
     let model: RemoteSessionModel
-    @Environment(AppModel.self) private var app
+    @EnvironmentObject private var app: AppModel
 
     private var subtitle: String {
         guard let meta = model.meta else { return "" }
@@ -442,7 +442,7 @@ private struct RemoteLoadOlder: View {
         ProgressView()
             .controlSize(.small)
             .frame(maxWidth: .infinity, minHeight: 36)
-            .onGeometryChange(for: CGFloat.self) { $0.frame(in: .global).maxY } action: { inView = $0 > scroll.top }
+            .onGeometryChangeCompat(for: CGFloat.self) { $0.frame(in: .global).maxY } action: { inView = $0 > scroll.top }
             .task(id: "\(inView)-\(model.rows.first?.id ?? "")") {
                 guard inView else { return }
                 try? await Task.sleep(for: .milliseconds(300))
@@ -508,7 +508,7 @@ private struct RemoteUserBubble: View {
 /// A picture a message carries: fetched from the account's server, opened full screen on a tap.
 private struct RemoteImageThumb: View {
     let attachment: RemoteAttachment
-    @Environment(AppModel.self) private var app
+    @EnvironmentObject private var app: AppModel
     @State private var image: UIImage?
     @State private var failed = false
     @State private var viewing = false

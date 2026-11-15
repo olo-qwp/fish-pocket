@@ -18,7 +18,7 @@ struct ShareAppPage: View {
         }
     }
 
-    @Environment(AppModel.self) private var app
+    @EnvironmentObject private var app: AppModel
     @Environment(\.locale) private var locale
     @State private var style = Style.qrPoster
     /// Each poster is drawn once, the first time its tab is open.
@@ -34,7 +34,7 @@ struct ShareAppPage: View {
                     .padding(.vertical, 16)
                     .frame(maxWidth: .infinity)
             }
-            .scrollBounceBehavior(.basedOnSize)
+            .compatScrollBounceBehavior()
             actions
                 .padding(.horizontal, 20)
                 .padding(.top, 12)

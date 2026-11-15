@@ -180,8 +180,8 @@ extension View {
     func detailSheet() -> some View {
         presentationDetents([.medium, .large])
             .presentationDragIndicator(.visible)
-            .presentationCornerRadius(36)
-            .presentationBackground(Palette.background)
+            .compatPresentationCornerRadius(36)
+            .compatPresentationBackground(Palette.background)
     }
 }
 
@@ -210,7 +210,7 @@ struct ToolDetailSheet: View {
             .navigationTitle(ToolStyle.name(of: call))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .topBarLeading) { copyButton(row.copies) }
+                ToolbarItem(placement: .navigationBarLeading) { copyButton(row.copies) }
             }
             .closeButton(dismiss)
         }

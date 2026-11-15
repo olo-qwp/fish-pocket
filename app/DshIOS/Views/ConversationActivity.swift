@@ -10,7 +10,7 @@ struct ConversationActivity: View {
     let browserShown: Bool
     let openBrowser: () -> Void
     let openJobs: () -> Void
-    @Environment(AppModel.self) private var app
+    @EnvironmentObject private var app: AppModel
 
     /// A subagent works in the browser of the conversation that started it.
     @MainActor
@@ -50,8 +50,8 @@ struct ConversationActivity: View {
                 )
             }
         }
-        .animation(.snappy(duration: 0.18), value: browser == nil)
-        .animation(.snappy(duration: 0.18), value: jobs.visibleCount)
+        .animation(.compatSnappy(duration: 0.18), value: browser == nil)
+        .animation(.compatSnappy(duration: 0.18), value: jobs.visibleCount)
     }
 
     private static func host(_ url: URL?) -> String? { FullScreenBrowser.site(url) }

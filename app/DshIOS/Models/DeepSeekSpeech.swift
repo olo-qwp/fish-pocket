@@ -1,6 +1,6 @@
 import AVFoundation
 import Foundation
-import Observation
+import Combine
 
 /// DeepSeek's speech recognition and synthesis, through the engine's `/api/ios-speech` routes
 /// (`engine/plugins/ios-speech`). The engine sends the DeepSeek API key stored for the models, else
@@ -262,8 +262,7 @@ final class DeepSeekTranscriber: SpeechTranscriber {
 /// Which service hold-to-talk uses. Until the user picks one: Volcengine when its key is saved
 /// (it shows the text while the user speaks), else DeepSeek with the models' own key.
 @MainActor
-@Observable
-final class VoicePreferences {
+final class VoicePreferences: ObservableObject {
     static let shared = VoicePreferences()
 
     enum Source: String, CaseIterable, Identifiable {
@@ -282,10 +281,10 @@ final class VoicePreferences {
 
     private static let sourceKey = "voiceSource"
     private static let readingVoiceKey = "readingVoice"
-    private var chosen: Source? = UserDefaults.standard.string(forKey: VoicePreferences.sourceKey).flatMap(Source.init(rawValue:))
+    @Published private var chosen: Source? = UserDefaults.standard.string(forKey: VoicePreferences.sourceKey).flatMap(Source.init(rawValue:))
 
     /// The voice replies are read in, by the app and by the agent's `speak` tool.
-    var readingVoice: DeepSeekSpeech.Voice = UserDefaults.standard.string(forKey: VoicePreferences.readingVoiceKey)
+    @Published var readingVoice: DeepSeekSpeech.Voice = UserDefaults.standard.string(forKey: VoicePreferences.readingVoiceKey)
         .flatMap(DeepSeekSpeech.Voice.init(rawValue:)) ?? .stella {
         didSet { UserDefaults.standard.set(readingVoice.rawValue, forKey: Self.readingVoiceKey) }
     }
@@ -304,23 +303,22 @@ final class VoicePreferences {
 /// Replies read aloud in DeepSeek's voice, one after another. Reading belongs to the conversation
 /// on screen (`scope`): moving to another one stops it.
 @MainActor
-@Observable
-final class ReadAloud {
+final class ReadAloud: ObservableObject {
     static let shared = ReadAloud()
 
     /// The session on screen. A change stops what is being read.
-    var scope: String? {
+    @Published var scope: String? {
         didSet { if scope != oldValue { stop() } }
     }
-    private(set) var speaking = false
+    @Published private(set) var speaking = false
     /// Held where it was; `resume()` goes on from there.
-    private(set) var paused = false
+    @Published private(set) var paused = false
     /// A failure worded for a toast; the app model shows it.
-    @ObservationIgnored var onError: ((String) -> Void)?
+    var onError: ((String) -> Void)?
 
-    @ObservationIgnored private var queue: [String] = []
-    @ObservationIgnored private var task: Task<Void, Never>?
-    @ObservationIgnored private var player: PCMPlayer?
+    private var queue: [String] = []
+    private var task: Task<Void, Never>?
+    private var player: PCMPlayer?
 
     func toggle(_ text: String) {
         if speaking { stop() } else { enqueue(text) }

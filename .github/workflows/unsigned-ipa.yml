@@ -1,0 +1,128 @@
+# Builds an unsigned .ipa for iOS 16.1+ and leaves it as a workflow artifact.
+#
+# This is the same preparation Xcode Cloud does (app/ci_scripts/ci_post_clone.sh: fetch
+# nodejs-mobile / Python / FFmpeg, build libgit2, assemble the engine, generate the
+# Xcode project), then a device archive with signing switched off.
+#
+# The result is unsigned on purpose: it installs through TrollStore (iOS 16, permanent),
+# or after Sideloadly / AltStore / 爱思助手 re-sign it with your own Apple ID.
+# Nothing here needs an Apple Developer account.
+#
+# Runner and Xcode are pinned deliberately:
+#   macos-26   the only image that carries the iOS 26 SDK
+#   Xcode 26.x the app calls AlarmKit / glassEffect / safeAreaBar behind `#available`,
+#              so those symbols must exist in the SDK; Xcode 27 is avoided because its
+#              minimum supported deployment target may no longer accept 16.1.
+name: Unsigned IPA (iOS 16.1+)
+
+on:
+  workflow_dispatch:
+    inputs:
+      configuration:
+        description: "Build configuration"
+        type: choice
+        options: [Release, Debug]
+        default: Release
+  push:
+    branches: [ios16-support]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: unsigned-ipa-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ipa:
+    runs-on: macos-26
+    timeout-minutes: 150
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Select Xcode 26
+        run: |
+          set -euo pipefail
+          # Newest 26.x: Xcode 27 previews on the image would raise the minimum
+          # deployment target the project may declare.
+          pick="$(ls -d /Applications/Xcode_26*.app 2>/dev/null | sort -V | tail -1)"
+          [ -n "$pick" ] || pick=/Applications/Xcode.app
+          sudo xcode-select -s "$pick"
+          xcodebuild -version
+          xcodebuild -showsdks | grep -i iphoneos
+
+      - name: Check the toolchain
+        run: |
+          set -euo pipefail
+          # What ci_post_clone.sh expects, and what the engine needs. Node 24 and
+          # Python 3 are installed on the image; xcodegen is not.
+          for tool in node npm python3 cmake curl; do
+            printf '%-8s %s\n' "$tool" "$(command -v "$tool" || echo MISSING)"
+          done
+          command -v node >/dev/null && node --version
+          command -v xcodegen >/dev/null || brew install xcodegen
+
+      # The scripts keep their downloads in vendor/ and skip re-fetching when the
+      # archive is already there, so caching the tree removes ~200 MB of download
+      # per run. Anything they rebuild (libgit2, the engine) is rebuilt anyway.
+      - name: Cache vendor downloads
+        uses: actions/cache@v6
+        with:
+          path: vendor
+          key: vendor-${{ runner.os }}-${{ hashFiles('scripts/fetch-nodejs-mobile.sh', 'scripts/fetch-python.sh', 'scripts/build-libgit2.sh', 'scripts/fetch-ffmpeg.sh') }}
+
+      - name: Prepare engine and project
+        run: |
+          set -o pipefail
+          bash app/ci_scripts/ci_post_clone.sh 2>&1 | tee "$RUNNER_TEMP/prepare.log"
+
+      # The vendored binaries are built for device arm64 only: no simulator slices to ask for.
+      - name: Archive (unsigned)
+        working-directory: app
+        env:
+          CONFIGURATION: ${{ github.event.inputs.configuration || 'Release' }}
+        run: |
+          set -o pipefail
+          xcodebuild -project DshIOS.xcodeproj -scheme DshIOS \
+            -configuration "$CONFIGURATION" \
+            -destination 'generic/platform=iOS' \
+            -archivePath "$RUNNER_TEMP/DshIOS.xcarchive" \
+            -skipPackagePluginValidation \
+            ARCHS=arm64 ONLY_ACTIVE_ARCH=NO \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
+            archive 2>&1 | tee "$RUNNER_TEMP/archive.log"
+
+      - name: Package Payload
+        run: |
+          set -euo pipefail
+          app="$RUNNER_TEMP/DshIOS.xcarchive/Products/Applications/DshIOS.app"
+          [ -d "$app" ] || { echo "no app in the archive"; ls -R "$RUNNER_TEMP/DshIOS.xcarchive/Products" || true; exit 1; }
+          version="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$app/Info.plist")"
+          build="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$app/Info.plist")"
+          # What the device will run: the oldest system this build claims to support.
+          minos="$(/usr/libexec/PlistBuddy -c 'Print :MinimumOSVersion' "$app/Info.plist")"
+          echo "Fish Pocket $version ($build), minimum iOS $minos"
+          mkdir -p "$RUNNER_TEMP/out/Payload"
+          cp -R "$app" "$RUNNER_TEMP/out/Payload/"
+          cd "$RUNNER_TEMP/out"
+          ditto -c -k --sequesterRsrc --keepParent Payload "FishPocket-$version-$build-unsigned.ipa"
+          ls -lh *.ipa
+
+      - uses: actions/upload-artifact@v5
+        with:
+          name: fish-pocket-unsigned-ipa
+          path: ${{ runner.temp }}/out/*.ipa
+          retention-days: 7
+
+      # On failure the log is the only way to see what the compiler objected to
+      # without a Mac in front of you.
+      - name: Keep the build logs
+        if: failure()
+        uses: actions/upload-artifact@v5
+        with:
+          name: build-logs
+          path: |
+            ${{ runner.temp }}/archive.log
+            ${{ runner.temp }}/prepare.log
+          retention-days: 7
+          if-no-files-found: ignore

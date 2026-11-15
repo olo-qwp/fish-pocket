@@ -5,7 +5,7 @@ import SwiftUI
 /// and the account notices. At the bottom, in the thumb's reach just above the
 /// composer, the shell toast (S-128, one at a time, a newer one replaces it).
 struct ShellNotices: View {
-    @Environment(AppModel.self) private var app
+    @EnvironmentObject private var app: AppModel
     @Environment(\.noticesHosted) private var hosted
     /// The banner waits a moment so a quick reconnect never flashes it.
     @State private var showOffline = false
@@ -40,9 +40,9 @@ struct ShellNotices: View {
         }
         .padding(.horizontal, 16)
         .padding(.bottom, bottomInset)
-        .animation(.snappy, value: app.toast)
-        .animation(.snappy, value: ReadAloud.shared.speaking)
-        .animation(.snappy, value: showOffline)
+        .animation(.compatSnappy, value: app.toast)
+        .animation(.compatSnappy, value: ReadAloud.shared.speaking)
+        .animation(.compatSnappy, value: showOffline)
         .task(id: app.connected) {
             guard !app.connected, app.generation > 0 else { showOffline = false; return }
             try? await Task.sleep(for: .seconds(1.5))
@@ -107,7 +107,7 @@ private struct ReadAloudBar: View {
     var body: some View {
         HStack(spacing: 4) {
             Image(systemName: "speaker.wave.2.fill")
-                .symbolEffect(.variableColor.iterative, isActive: !reading.paused)
+                .compatSymbolEffectVariableColor(active: !reading.paused)
                 .foregroundStyle(Palette.secondary)
                 .padding(.leading, 14)
             (reading.paused ? Text("朗读已暂停") : Text("正在朗读"))

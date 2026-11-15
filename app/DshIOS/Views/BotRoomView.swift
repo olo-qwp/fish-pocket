@@ -137,7 +137,7 @@ struct RoomRelay: Hashable {
 
 /// A group chat: the group's own session in the conversation view.
 struct BotRoomView: View {
-    @Environment(AppModel.self) private var app
+    @EnvironmentObject private var app: AppModel
     let roomId: String
     /// See `BotChatView.selection`.
     @State private var selection: String?
@@ -170,7 +170,7 @@ struct BotRoomView: View {
             .sheet(isPresented: $detailOpen) {
                 RoomDetailView(roomId: roomId).environment(\.browserLinks, BrowserLinks(sessionId: room.sessionId, origin: app.client.origin))
             }
-            .onChange(of: team.scheduleRequest) { _, request in
+            .onChangeCompat(of: team.scheduleRequest) { _, request in
                 guard request == .room(roomId) else { return }
                 team.scheduleRequest = nil
                 Task { try? await Task.sleep(for: .milliseconds(350)); detailOpen = true }
@@ -180,14 +180,14 @@ struct BotRoomView: View {
         } else if team.status == .unknown {
             ConversationLoading().background(Palette.background)
         } else {
-            ContentUnavailableView("这个群聊已经不在了", systemImage: "person.2.slash")
+            CompatContentUnavailableView("这个群聊已经不在了", systemImage: "person.2.slash")
         }
     }
 }
 
 /// Above a group's composer: who speaks now, and a tap to @ a member.
 private struct RoomMentions: View {
-    @Environment(AppModel.self) private var app
+    @EnvironmentObject private var app: AppModel
     @Environment(\.sessionModel) private var session
     let room: RoomInfo
 
@@ -237,7 +237,7 @@ private struct RoomMentions: View {
 
 /// A member waits for the user to allow a tool in the group (only answerable here).
 private struct RoomApprovalCard: View {
-    @Environment(AppModel.self) private var app
+    @EnvironmentObject private var app: AppModel
     let approval: JSON
     @State private var sending = false
 
@@ -277,12 +277,12 @@ extension View {
 }
 
 private struct OpenOtherSession: ViewModifier {
-    @Environment(AppModel.self) private var app
+    @EnvironmentObject private var app: AppModel
     @Binding var selection: String?
     let sessionId: String
 
     func body(content: Content) -> some View {
-        content.onChange(of: selection) { _, id in
+        content.onChangeCompat(of: selection) { _, id in
             guard let id, id != sessionId else { return }
             selection = nil
             app.open(session: id)

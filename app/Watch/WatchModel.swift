@@ -1,14 +1,13 @@
 import Foundation
-import Observation
 import WatchConnectivity
 import WatchKit
+import Combine
 
 /// The watch app's state: the last snapshot the phone sent, and the card for a
 /// turn that just ended. Nothing is computed here that the phone does not know;
 /// the wrist only draws, taps the user and sends back what they chose.
 @MainActor
-@Observable
-final class WatchModel: NSObject {
+final class WatchModel: NSObject, ObservableObject {
     /// How the fish looks and what the first lines say.
     enum Mood { case offline, unknown, waiting, running, idle, done }
 
@@ -21,14 +20,14 @@ final class WatchModel: NSObject {
         var id: String { completion.id }
     }
 
-    private(set) var snapshot: WatchSnapshot?
+    @Published private(set) var snapshot: WatchSnapshot?
     /// The phone answered with nothing: its app is running without an engine (started in the background).
-    private(set) var phoneAsleep = false
-    var card: Card?
+    @Published private(set) var phoneAsleep = false
+    @Published var card: Card?
 
-    @ObservationIgnored private var started = false
+    private var started = false
     /// Completions already on a card: the phone may list them once more before it hears they were seen.
-    @ObservationIgnored private var shown: Set<String> = []
+    private var shown: Set<String> = []
 
     var mood: Mood {
         guard let snapshot, !phoneAsleep else { return .offline }

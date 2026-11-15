@@ -114,7 +114,7 @@ struct ConnectorIcon: View {
 /// come first; the rest are found by kind or by name. This phone's own device capabilities are a
 /// category here too (`device`): they need no plugin, so that part shows whatever the Bot plugin does.
 struct BotConnectorsPage: View {
-    @Environment(AppModel.self) private var app
+    @EnvironmentObject private var app: AppModel
     @State private var adding = false
     @State private var query = ""
     /// nil: every kind.
@@ -207,7 +207,7 @@ struct BotConnectorsPage: View {
     private func pill(_ title: String, picked: Bool, action: @escaping () -> Void) -> some View {
         Button {
             Haptics.select()
-            withAnimation(.snappy(duration: 0.2)) { action() }
+            withAnimation(.compatSnappy(duration: 0.2)) { action() }
         } label: {
             Text(title).font(.subheadline.weight(picked ? .semibold : .regular))
                 .foregroundStyle(picked ? Palette.onInk : Palette.ink)
@@ -292,7 +292,7 @@ struct ConnectorState: View {
 
 /// One connector: connect it the way it signs in, then which Bots may use it.
 struct BotConnectorPage: View {
-    @Environment(AppModel.self) private var app
+    @EnvironmentObject private var app: AppModel
     @Environment(\.dismiss) private var dismiss
     let id: String
     @State private var key = ""
@@ -358,7 +358,7 @@ struct BotConnectorPage: View {
         .disabled(busy)
         .navigationTitle(ConnectorBrand.name(row))
         .navigationBarTitleDisplayMode(.inline)
-        .onChange(of: row["pending"]["url"].string) { _, url in
+        .onChangeCompat(of: row["pending"]["url"].string) { _, url in
             // A browser sign-in: the page runs inside the app so the engine, which listens for
             // the redirect, keeps running.
             if let url = url.flatMap(URL.init(string:)) { InAppSafari.open(url) }
@@ -486,7 +486,7 @@ struct BotConnectorPage: View {
 
 /// A connector of the user's own: an MCP server at an HTTPS address.
 private struct CustomConnectorSheet: View {
-    @Environment(AppModel.self) private var app
+    @EnvironmentObject private var app: AppModel
     @Environment(\.dismiss) private var dismiss
     @State private var name = ""
     @State private var url = ""

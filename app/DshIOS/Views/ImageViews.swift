@@ -246,7 +246,7 @@ struct ImageViewer: View {
                         .onChanged { scale = max(1, min(6, lastScale * $0.magnification)) }
                         .onEnded { _ in
                             lastScale = scale
-                            if scale == 1 { withAnimation(.snappy) { offset = .zero }; lastOffset = .zero }
+                            if scale == 1 { withAnimation(.compatSnappy) { offset = .zero }; lastOffset = .zero }
                         }
                         .simultaneously(with: DragGesture()
                             .onChanged { value in
@@ -259,14 +259,14 @@ struct ImageViewer: View {
                             }
                             .onEnded { value in
                                 if scale <= 1 {
-                                    if value.translation.height > 120 { dismiss() } else { withAnimation(.snappy) { offset = .zero } }
+                                    if value.translation.height > 120 { dismiss() } else { withAnimation(.compatSnappy) { offset = .zero } }
                                 } else {
                                     lastOffset = offset
                                 }
                             })
                 )
                 .onTapGesture(count: 2) {
-                    withAnimation(.snappy) {
+                    withAnimation(.compatSnappy) {
                         if scale > 1 { scale = 1; offset = .zero } else { scale = 2.5 }
                     }
                     lastScale = scale

@@ -1,5 +1,5 @@
 import Foundation
-import Observation
+import Combine
 
 /// Speech to text for hold-to-talk. The recognizer plugs in at `VoiceInput.makeTranscriber`;
 /// the composer only sees the running text, the input level and the final text.
@@ -21,8 +21,7 @@ protocol SpeechTranscriber: AnyObject {
 
 /// Hold-to-talk in the composer: hold the bar to speak, let go to send, move up to cancel.
 @MainActor
-@Observable
-final class VoiceInput {
+final class VoiceInput: ObservableObject {
     enum Phase: Equatable {
         case idle
         /// The finger is down and the recognizer is listening.
@@ -40,14 +39,14 @@ final class VoiceInput {
     }
 
     /// The bar shows 按住说话 in place of the text field.
-    var mode = false
-    private(set) var phase: Phase = .idle
+    @Published var mode = false
+    @Published private(set) var phase: Phase = .idle
     /// The finger has moved up into the cancel area: letting go throws the recording away.
-    private(set) var cancelArmed = false
-    private(set) var transcript = ""
+    @Published private(set) var cancelArmed = false
+    @Published private(set) var transcript = ""
     /// The latest input levels, oldest first: the waveform.
-    private(set) var levels: [Float] = Array(repeating: 0, count: VoiceInput.barCount)
-    private(set) var startedAt: Date?
+    @Published private(set) var levels: [Float] = Array(repeating: 0, count: VoiceInput.barCount)
+    @Published private(set) var startedAt: Date?
 
     static let barCount = 32
     /// One recording at most this long; it then sends on its own, the finger still down.
@@ -57,7 +56,7 @@ final class VoiceInput {
 
     /// The service chosen in 设置 → 语音输入: DeepSeek with the models' key, or Volcengine with
     /// the user's own key (nil until one is saved).
-    @ObservationIgnored var makeTranscriber: () -> SpeechTranscriber? = {
+    var makeTranscriber: () -> SpeechTranscriber? = {
         #if DEBUG
         // Made-up levels and text, to look at the UI without a key or a microphone.
         if ProcessInfo.processInfo.arguments.contains("-dshVoiceDemo") { return DemoTranscriber() }
@@ -80,8 +79,8 @@ final class VoiceInput {
         #endif
         return VoicePreferences.shared.source == .deepseek || VolcSpeech.shared.configured
     }
-    @ObservationIgnored private var transcriber: SpeechTranscriber?
-    @ObservationIgnored private var limit: Task<Void, Never>?
+    private var transcriber: SpeechTranscriber?
+    private var limit: Task<Void, Never>?
 
     var holding: Bool { phase == .listening }
 

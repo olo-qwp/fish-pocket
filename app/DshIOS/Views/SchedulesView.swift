@@ -4,15 +4,14 @@ import WebKit
 /// The Host's task catalog (`schedule/catalog`: every session, active and
 /// inactive, by target time), shared by the list and the detail it pushes.
 @MainActor
-@Observable
-final class ScheduleCatalog {
+final class ScheduleCatalog: ObservableObject {
     enum Status { case loading, ready, error }
 
-    private(set) var records: [JSON] = []
-    private(set) var status = Status.loading
+    @Published private(set) var records: [JSON] = []
+    @Published private(set) var status = Status.loading
     /// A read has succeeded at least once.
-    private(set) var settled = false
-    @ObservationIgnored private var epoch = 0
+    @Published private(set) var settled = false
+    private var epoch = 0
 
     func load(_ client: EngineClient) async {
         epoch += 1
@@ -57,9 +56,9 @@ struct SchedulesView: View {
         }
     }
 
-    @Environment(AppModel.self) private var app
+    @EnvironmentObject private var app: AppModel
     @AppStorage("dsh.currentWorkspace") private var workspaceId = ""
-    @State private var catalog = ScheduleCatalog()
+    @StateObject private var catalog = ScheduleCatalog()
     @State private var filter = StatusFilter.all
     @State private var query = ""
     @State private var confirming: JSON?
@@ -129,7 +128,7 @@ struct SchedulesView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             if sessionId == nil {
-                ToolbarItem(placement: .topBarTrailing) {
+                ToolbarItem(placement: .navigationBarTrailing) {
                     Button { Task { await newTask() } } label: { Label("新建", systemImage: "plus") }
                         .disabled(creating)
                 }
@@ -151,13 +150,13 @@ struct SchedulesView: View {
         if !catalog.settled && catalog.status != .error {
             ProgressView()
         } else if catalog.status == .error && catalog.records.isEmpty {
-            ContentUnavailableView {
+            CompatContentUnavailableView {
                 Label("无法加载任务", systemImage: "exclamationmark.triangle")
             } actions: {
                 Button("重试") { Task { await catalog.load(app.client) } }
             }
         } else if shown.isEmpty {
-            ContentUnavailableView {
+            CompatContentUnavailableView {
                 Label(emptyTitle, systemImage: "clock")
             } description: {
                 if scoped.isEmpty { Text("在对话里让 DSH 安排，例如「每天早上 9 点总结提交」。") }
@@ -244,7 +243,7 @@ struct ScheduleDetailView: View {
     enum Tab: String, CaseIterable { case rule, records }
     enum Failure: Equatable { case local, message(String) }
 
-    @Environment(AppModel.self) private var app
+    @EnvironmentObject private var app: AppModel
     let catalog: ScheduleCatalog
     let taskId: String
     /// The session this page was opened from: its link is hidden.
@@ -302,7 +301,7 @@ struct ScheduleDetailView: View {
                 }
                 .pageBackground()
             } else if catalog.settled {
-                ContentUnavailableView("任务已不可用，可能已被删除", systemImage: "clock")
+                CompatContentUnavailableView("任务已不可用，可能已被删除", systemImage: "clock")
             } else {
                 ProgressView()
             }
@@ -342,12 +341,12 @@ struct ScheduleDetailView: View {
             Button("继续编辑", role: .cancel) {}
         }
         .onAppear(perform: sync)
-        .onChange(of: catalog.entry(taskId)) { _, _ in sync() }
+        .onChangeCompat(of: catalog.entry(taskId)) { _, _ in sync() }
         // The save button is at the top; the reason may be under the fold.
-        .onChange(of: failure) { _, failure in
+        .onChangeCompat(of: failure) { _, failure in
             if failure != nil, let failureText { app.showToast(failureText, tone: .warning) }
         }
-        .onChange(of: shown?.kind) { _, kind in
+        .onChangeCompat(of: shown?.kind) { _, kind in
             // A switch into the interval picks the unit that states it, unless one was chosen.
             guard kind == .every else { explicitUnit = false; return }
             if !explicitUnit, let seconds = shown?.draft.seconds { unit = .preferred(seconds) }
@@ -611,7 +610,7 @@ private struct EdgeSwipeAttempt: UIViewRepresentable {
 /// 任务运行记录 (S-105): the latest 20 deliveries, more on demand, each with the prompt it delivered.
 private struct DeliveryHistoryView: View {
     let task: JSON
-    @Environment(AppModel.self) private var app
+    @EnvironmentObject private var app: AppModel
     @State private var records: [JSON] = []
     @State private var nextBefore: String?
     @State private var pruned = false
@@ -675,13 +674,13 @@ private struct DeliveryHistoryView: View {
                 if loading {
                     ProgressView()
                 } else if let failure {
-                    ContentUnavailableView {
+                    CompatContentUnavailableView {
                         Label(failure.text, systemImage: "exclamationmark.triangle")
                     } actions: {
                         Button(failure.cursor ? "刷新" : "重试") { Task { await load(failure.before) } }
                     }
                 } else {
-                    ContentUnavailableView("暂无任务运行记录", systemImage: "clock")
+                    CompatContentUnavailableView("暂无任务运行记录", systemImage: "clock")
                 }
             }
         }
@@ -735,13 +734,13 @@ private struct SavedPrompt: View {
                 .foregroundStyle(Palette.secondary)
                 .lineLimit(expanded ? nil : 2)
                 .textSelection(.enabled)
-                .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { if !expanded { clampedHeight = $0 } }
+                .onGeometryChangeCompat(for: CGFloat.self) { $0.size.height } action: { if !expanded { clampedHeight = $0 } }
                 .background {
                     Text(text).font(.footnote).fixedSize(horizontal: false, vertical: true).hidden()
-                        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { fullHeight = $0 }
+                        .onGeometryChangeCompat(for: CGFloat.self) { $0.size.height } action: { fullHeight = $0 }
                 }
             if expanded || fullHeight > clampedHeight + 1 {
-                Button { withAnimation(.snappy) { expanded.toggle() } } label: {
+                Button { withAnimation(.compatSnappy) { expanded.toggle() } } label: {
                     Label(expanded ? "收起" : "展开", systemImage: expanded ? "chevron.up" : "chevron.down")
                         .font(.caption)
                 }
@@ -756,7 +755,7 @@ private struct SavedPrompt: View {
 
 /// The engine's own web UI, for plugin interfaces that only exist in the browser.
 struct WebFallbackView: View {
-    @Environment(AppModel.self) private var app
+    @EnvironmentObject private var app: AppModel
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {

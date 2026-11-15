@@ -1,5 +1,6 @@
 import Foundation
 import NodeMobile
+import Combine
 
 /// Runs Node (`nodejs-project/main.mjs`, which hosts the DSH engine in a worker)
 /// on a dedicated thread and publishes the web URL once `dsh web` is listening.

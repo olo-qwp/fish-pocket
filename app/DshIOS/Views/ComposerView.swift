@@ -8,7 +8,7 @@ import UniformTypeIdentifiers
 struct ModelPicker: View {
     let model: SessionModel
     let context: ComposerContext
-    @Environment(AppModel.self) private var app
+    @EnvironmentObject private var app: AppModel
     @State private var searching = false
 
     var body: some View {
@@ -228,7 +228,7 @@ struct ComposerView: View {
     var focusChanged: (Bool) -> Void = { _ in }
     /// On from opening one of the composer's sheets until it is gone; the conversation's own sheets wait for it.
     var sheetUp: Binding<Bool> = .constant(false)
-    @Environment(AppModel.self) private var app
+    @EnvironmentObject private var app: AppModel
     @Environment(\.horizontalSizeClass) private var sizeClass
     @Environment(\.scenePhase) private var scenePhase
     @State private var photos: [PhotosPickerItem] = []
@@ -272,8 +272,8 @@ struct ComposerView: View {
                     }
                 }
                 // The bar turns at the touch; only letting go eases back.
-                .animation(voice.holding ? nil : .snappy(duration: 0.18), value: voice.phase)
-                .animation(.snappy(duration: 0.18), value: voice.cancelArmed)
+                .animation(voice.holding ? nil : .compatSnappy(duration: 0.18), value: voice.phase)
+                .animation(.compatSnappy(duration: 0.18), value: voice.cancelArmed)
                 .composerSurface()
         }
         .task(id: pendingDraft) {
@@ -304,7 +304,7 @@ struct ComposerView: View {
             consumeFocus()
         }
         .photosPicker(isPresented: $showPhotos, selection: $photos, maxSelectionCount: max(1, composer.remainingImageSlots), matching: .any(of: [.images, .videos]), preferredItemEncoding: .current)
-        .onChange(of: photos) { _, items in
+        .onChangeCompat(of: photos) { _, items in
             Task { await loadPhotos(items) }
         }
         .fullScreenCover(isPresented: $showCamera) {
@@ -354,28 +354,28 @@ struct ComposerView: View {
         }
         .permissionConfirmation($confirmingPermission, confirm: applyPermission)
         // A popover has no `onDismiss`. A picker presented before its dismissal ends never shows.
-        .onChange(of: showTray) { _, open in
+        .onChangeCompat(of: showTray) { _, open in
             guard !open, sizeClass == .regular else { return }
             Task {
                 try? await Task.sleep(for: .milliseconds(450))
                 sheetClosed()
             }
         }
-        .onChange(of: showTray || showEditor || browsing != nil) { _, open in
+        .onChangeCompat(of: showTray || showEditor || browsing != nil) { _, open in
             if open { sheetUp.wrappedValue = true }
         }
         .onChange(of: composer.focusRequest) { focused = true }
-        .onChange(of: focused) { _, now in
+        .onChangeCompat(of: focused) { _, now in
             // Anything that brings the keyboard back (a prompt placed, a tray choice) shows the text.
             if now { voice.mode = false }
             focusChanged(now)
         }
         // A call or the app leaving the foreground ends the hold without a touch-up: throw it away.
-        .onChange(of: scenePhase) { _, phase in if phase != .active { voice.cancel() } }
+        .onChangeCompat(of: scenePhase) { _, phase in if phase != .active { voice.cancel() } }
         .onDisappear { voice.cancel() }
         // A picker closing gives the keyboard back when it was up before: typed into
         // (`/model`, `/file`) or reached from the tray while it was up.
-        .onChange(of: pickerUp) { _, open in
+        .onChangeCompat(of: pickerUp) { _, open in
             if open {
                 refocus = refocus || focused
             } else {
@@ -444,7 +444,7 @@ struct ComposerView: View {
             .focused($focused)
             .tint(Palette.ink)
             .padding(.trailing, tall ? 30 : 0)
-            .onGeometryChange(for: Bool.self) { $0.size.height > threeLines } action: { tall = $0 }
+            .onGeometryChangeCompat(for: Bool.self) { $0.size.height > threeLines } action: { tall = $0 }
             .overlay(alignment: .topTrailing) {
                 if tall {
                     Button { refocus = true; showEditor = true } label: {
@@ -912,7 +912,7 @@ struct CameraPicker: UIViewControllerRepresentable {
 
 /// The draft on a page of its own, for text too long for the input.
 private struct DraftEditor: View {
-    @Bindable var composer: ComposerModel
+    @ObservedObject var composer: ComposerModel
     let send: () -> Void
     @FocusState private var focused: Bool
     @Environment(\.dismiss) private var dismiss
@@ -966,13 +966,13 @@ struct FittedSheet: ViewModifier {
 
     func body(content: Content) -> some View {
         ScrollView {
-            content.onGeometryChange(for: CGFloat.self) { $0.size.height } action: { height = $0 }
+            content.onGeometryChangeCompat(for: CGFloat.self) { $0.size.height } action: { height = $0 }
         }
-        .scrollBounceBehavior(.basedOnSize)
+        .compatScrollBounceBehavior()
         .presentationDetents([.height(height)])
-        .presentationCornerRadius(36)
+        .compatPresentationCornerRadius(36)
         .presentationDragIndicator(.hidden)
-        .presentationBackground(Palette.background)
+        .compatPresentationBackground(Palette.background)
     }
 }
 

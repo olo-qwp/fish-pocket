@@ -375,7 +375,7 @@ struct TimeZonePicker: View {
         }
         .groupedList()
         .overlay {
-            if catalog.isEmpty { ProgressView() } else if matches.isEmpty { ContentUnavailableView("没有匹配的时区", systemImage: "globe") }
+            if catalog.isEmpty { ProgressView() } else if matches.isEmpty { CompatContentUnavailableView("没有匹配的时区", systemImage: "globe") }
         }
         .searchable(text: $query, placement: .navigationBarDrawer(displayMode: .always), prompt: "搜索 UTC 偏移、IANA 标识或城市")
         .navigationTitle("时区")

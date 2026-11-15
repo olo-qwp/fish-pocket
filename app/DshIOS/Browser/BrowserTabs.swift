@@ -7,20 +7,18 @@ import SwiftUI
 /// operations act on the tab it names or, without one, the tab it last used. So a link the user
 /// opens in a new tab, or a tab the user brings to the front, does not move the agent elsewhere.
 @MainActor
-@Observable
-final class BrowserModel {
+final class BrowserModel: ObservableObject {
     @MainActor
-    @Observable
-    final class Tab: Identifiable {
+    final class Tab: Identifiable, ObservableObject {
         /// Short and stable while the app runs (`t1`, `t2`…): the agent names tabs by it.
         let id: String
         /// The live page; nil once it was let go to save memory, until it is wanted again.
-        fileprivate(set) var page: BrowserPage?
+        @Published fileprivate(set) var page: BrowserPage?
         /// Where a page that was let go (or not loaded yet) is to come back to.
-        fileprivate var savedURL: String?
-        fileprivate var savedTitle: String?
+        @Published fileprivate var savedURL: String?
+        @Published fileprivate var savedTitle: String?
         /// When it was last in front or used by the agent, to choose which page to let go.
-        fileprivate var used = Date()
+        @Published fileprivate var used = Date()
 
         fileprivate init(id: String) { self.id = id }
 
@@ -36,26 +34,26 @@ final class BrowserModel {
         var title: String?
     }
 
-    private(set) var tabs: [Tab] = []
-    private(set) var selectedId: String?
+    @Published private(set) var tabs: [Tab] = []
+    @Published private(set) var selectedId: String?
     /// The tabs open when the app last ran, until they are restored or something else is opened.
-    private(set) var restorable: [Saved] = []
+    @Published private(set) var restorable: [Saved] = []
     /// The tab the agent last worked in: its operations go there unless they name another.
-    @ObservationIgnored private(set) var agentTabId: String?
+    private(set) var agentTabId: String?
     /// The user opened a blank tab: its address bar takes the keyboard when it shows.
-    @ObservationIgnored var focusesAddress = false
+    var focusesAddress = false
 
-    @ObservationIgnored let origin: URL
+    let origin: URL
     /// The conversation: downloads go to its working directory.
-    @ObservationIgnored let sessionId: String
+    let sessionId: String
     /// The agent's kept scripts (`addScript`), run in every tab on every page load until the app restarts.
-    @ObservationIgnored var keptScripts: [BrowserScript] = []
-    @ObservationIgnored var scriptCount = 0
+    var keptScripts: [BrowserScript] = []
+    var scriptCount = 0
     /// Files any tab downloaded, and the ones still coming.
-    @ObservationIgnored var downloads: [BrowserDownload] = []
-    @ObservationIgnored private let storageKey: String
-    @ObservationIgnored private var restorableSelected = 0
-    @ObservationIgnored private var nextId = 1
+    var downloads: [BrowserDownload] = []
+    private let storageKey: String
+    private var restorableSelected = 0
+    private var nextId = 1
 
     var selected: Tab? { tabs.first { $0.id == selectedId } }
     /// The address of the tab in front.
@@ -70,8 +68,8 @@ final class BrowserModel {
     // MARK: One per conversation
 
     /// The conversations' browsers. Observed, so a conversation can show that its browser has a page.
-    @MainActor @Observable final class Registry {
-        fileprivate(set) var models: [String: BrowserModel] = [:]
+    @MainActor final class Registry: ObservableObject {
+        @Published fileprivate(set) var models: [String: BrowserModel] = [:]
     }
     static let registry = Registry()
 
@@ -306,7 +304,7 @@ struct BrowserTabsSheet: View {
             .navigationTitle(Text("\(model.tabs.count) 个标签页"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
+                ToolbarItem(placement: .navigationBarLeading) {
                     Button {
                         Haptics.tap()
                         model.focusesAddress = true
@@ -369,7 +367,7 @@ struct BrowserTabsSheet: View {
 
     private func close(_ tab: BrowserModel.Tab) {
         Haptics.tap()
-        withAnimation(.snappy(duration: 0.2)) { model.close(tab) }
+        withAnimation(.compatSnappy(duration: 0.2)) { model.close(tab) }
     }
 
     private static func host(_ url: String?) -> String? { FullScreenBrowser.site(url.flatMap(URL.init(string:))) }

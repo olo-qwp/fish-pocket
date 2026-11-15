@@ -8,7 +8,7 @@ import SwiftUI
 /// `ictrl://start` / `ictrl://stop` 链接。装它、签名、挂开发者镜像都在 iCTRL 和
 /// SideStore 里，本 App 不碰；详细步骤放在官网教程里，页面里只给入口。
 struct PhoneControlView: View {
-    @State private var service = PhoneControlService()
+    @StateObject private var service = PhoneControlService()
     @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
@@ -92,14 +92,14 @@ struct PhoneControlView: View {
         .navigationBarTitleDisplayMode(.inline)
         .task { await service.refresh() }
         // 从 iCTRL 回来（启动、停止都会跳过去）时重新查一次。
-        .onChange(of: scenePhase) { _, phase in
+        .onChangeCompat(of: scenePhase) { _, phase in
             if phase == .active { Task { await service.refresh() } }
         }
     }
 }
 
-@MainActor @Observable
-final class PhoneControlService {
+@MainActor 
+final class PhoneControlService: ObservableObject {
     enum State: Equatable {
         case checking, notInstalled, stopped, running
 
@@ -121,7 +121,7 @@ final class PhoneControlService {
         }
     }
 
-    private(set) var state: State = .checking
+    @Published private(set) var state: State = .checking
 
     /// iCTRL's unauthenticated status endpoint; it answers only on this phone.
     private static let whoami = URL(string: "http://127.0.0.1:8200/whoami")!

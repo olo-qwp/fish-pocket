@@ -3,7 +3,7 @@ import SwiftUI
 /// A group chat's page: its name and notice, who is in it and who speaks first,
 /// its scheduled tasks, and stopping or deleting it.
 struct RoomDetailView: View {
-    @Environment(AppModel.self) private var app
+    @EnvironmentObject private var app: AppModel
     @Environment(\.dismiss) private var dismiss
     let roomId: String
     @State private var confirmingDelete = false
@@ -72,7 +72,7 @@ struct RoomDetailView: View {
                         Text("群里的聊天记录和定时任务都会删掉，成员 Bot 不受影响。")
                     }
                 } else {
-                    ContentUnavailableView("这个群聊已经不在了", systemImage: "person.2.slash")
+                    CompatContentUnavailableView("这个群聊已经不在了", systemImage: "person.2.slash")
                 }
             }
             .navigationTitle(team.room(roomId).map(team.name(of:)) ?? String(localized: "群聊"))
@@ -221,7 +221,7 @@ struct RoomDetailView: View {
 
 /// Bots to add to a group: the team's others.
 private struct RoomAddMembersSheet: View {
-    @Environment(AppModel.self) private var app
+    @EnvironmentObject private var app: AppModel
     @Environment(\.dismiss) private var dismiss
     let roomId: String
     @State private var picked: Set<String> = []

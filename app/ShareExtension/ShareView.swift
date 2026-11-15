@@ -26,10 +26,10 @@ struct ShareView: View {
     private var content: some View {
         switch model.phase {
         case .empty:
-            ContentUnavailableView("没能读取分享的内容", systemImage: "exclamationmark.triangle",
+            CompatContentUnavailableView("没能读取分享的内容", systemImage: "exclamationmark.triangle",
                                    description: Text("换一种方式分享，或者在 Fish Pocket 里从文件添加。"))
         case .waitingForApp:
-            ContentUnavailableView("已经准备好", systemImage: "checkmark.circle",
+            CompatContentUnavailableView("已经准备好", systemImage: "checkmark.circle",
                                    description: Text("打开 Fish Pocket 就能在输入框里看到，确认后再发送。"))
         case .reading where model.preset != nil, .ready where model.preset != nil:
             // From the top row: nothing to pick, just a moment to read what was shared.

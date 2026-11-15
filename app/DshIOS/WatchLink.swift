@@ -1,7 +1,7 @@
 import Foundation
-import Observation
 import SwiftUI
 import WatchConnectivity
+import Combine
 
 /// Keeps the watch app in step with the phone: sends it the snapshot it draws
 /// (`WatchSnapshot`) whenever what it shows changes, and carries out what the
@@ -41,6 +41,8 @@ final class WatchLink: NSObject {
     private var onScreen = true
     /// The observation in force: an older one (a previous engine connection) does not renew itself.
     private var tracking = 0
+    /// The model changes this follows (see `AppModel.changePublisher`).
+    private var observation: AnyCancellable?
 
     private override init() {}
 
@@ -66,10 +68,12 @@ final class WatchLink: NSObject {
     /// Re-derive on every change of what the snapshot reads (sessions, approvals, projections, balance).
     private func observe(_ token: Int) {
         guard let app, token == tracking else { return }
-        let next = withObservationTracking { Self.snapshot(of: app) } onChange: { [weak self] in
-            Task { @MainActor in self?.observe(token) }
+        // A new engine connection replaces the previous subscription, as it did the previous tracking.
+        observation?.cancel()
+        observation = AppModel.changePublisher(app).sink { [weak self] _ in
+            Task { @MainActor in self?.refresh() }
         }
-        apply(next)
+        apply(Self.snapshot(of: app))
     }
 
     /// Something outside the model changed (a completion, the scene phase, the link to the watch).

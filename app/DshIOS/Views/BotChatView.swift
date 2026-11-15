@@ -3,7 +3,7 @@ import SwiftUI
 /// A Bot's own chat: its session in the conversation view, with the Bot as the title
 /// and what waits on the user (a model to pick, a question, a form) above the composer.
 struct BotChatView: View {
-    @Environment(AppModel.self) private var app
+    @EnvironmentObject private var app: AppModel
     let botId: String
     @State private var detailOpen = false
     @State private var detailTab = BotDetailView.Tab.profile
@@ -35,18 +35,18 @@ struct BotChatView: View {
             .sheet(isPresented: $sideChatOpen) {
                 BotSideChatSheet(botId: botId).environment(\.browserLinks, BrowserLinks(sessionId: bot.sessionId, origin: app.client.origin))
             }
-            .onChange(of: team.memoryRequest) { _, request in
+            .onChangeCompat(of: team.memoryRequest) { _, request in
                 guard request == botId else { return }
                 team.memoryRequest = nil
                 detailTab = .memory
                 detailOpen = true
             }
-            .onChange(of: team.sideChatRequest) { _, request in
+            .onChangeCompat(of: team.sideChatRequest) { _, request in
                 guard request == botId else { return }
                 team.sideChatRequest = nil
                 Task { try? await Task.sleep(for: .milliseconds(350)); sideChatOpen = true }
             }
-            .onChange(of: team.scheduleRequest) { _, request in
+            .onChangeCompat(of: team.scheduleRequest) { _, request in
                 guard request == .bot(botId) else { return }
                 team.scheduleRequest = nil
                 detailTab = .schedules
@@ -59,14 +59,14 @@ struct BotChatView: View {
             // The app opened on this chat (the page it was last on) before the team answered.
             ConversationLoading().background(Palette.background)
         } else {
-            ContentUnavailableView("这个 Bot 已不在团队里", systemImage: "person.slash")
+            CompatContentUnavailableView("这个 Bot 已不在团队里", systemImage: "person.slash")
         }
     }
 }
 
 /// The bar's title: the Bot's mark, name and what it is doing.
 private struct BotTitle: View {
-    @Environment(AppModel.self) private var app
+    @EnvironmentObject private var app: AppModel
     let bot: BotInfo
 
     var body: some View {
@@ -99,7 +99,7 @@ struct BotTitleCapsule: ViewModifier {
 
 /// What waits on the user in this chat. Tool approvals are the conversation view's own.
 private struct BotPending: View {
-    @Environment(AppModel.self) private var app
+    @EnvironmentObject private var app: AppModel
     let bot: BotInfo
 
     var body: some View {
@@ -154,7 +154,7 @@ struct BotCard<Content: View>: View {
 
 /// A question the Bot asked (ds-bot's `ask_user`): its options as buttons.
 private struct BotQuestionCard: View {
-    @Environment(AppModel.self) private var app
+    @EnvironmentObject private var app: AppModel
     let bot: BotInfo
     let question: JSON
     @State private var picked: Set<String> = []
@@ -227,7 +227,7 @@ private struct BotQuestionCard: View {
 
 /// A Bot holds its greeting until it has a model.
 private struct BotModelPicker: View {
-    @Environment(AppModel.self) private var app
+    @EnvironmentObject private var app: AppModel
     let bot: BotInfo
     @State private var saving = false
 
@@ -270,7 +270,7 @@ private struct BotModelPicker: View {
 
 /// The chat's menu in the bar: what the chat can do beyond sending a message.
 struct BotChatMenu: View {
-    @Environment(AppModel.self) private var app
+    @EnvironmentObject private var app: AppModel
     let target: BotComposer
     let model: SessionModel
     /// The conversation's tools, for a chat that has them.

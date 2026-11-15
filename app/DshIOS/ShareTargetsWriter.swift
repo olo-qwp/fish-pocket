@@ -1,5 +1,5 @@
-import Observation
 import SwiftUI
+import Combine
 
 /// Keeps the share extension's Bots and group chats (`ShareTargets`) in step with the team:
 /// the Bot page's order, hidden ones left out, each with its avatar drawn as the app draws it.
@@ -14,6 +14,8 @@ final class ShareTargetsWriter {
     private static let avatarSize: CGFloat = 36
 
     private weak var app: AppModel?
+    /// The model changes this follows (see `AppModel.changePublisher`).
+    private var observation: AnyCancellable?
     private var written: ShareTargets?
     /// The look each drawn avatar was drawn from, by file name.
     private var drawn: [String: String] = [:]
@@ -28,10 +30,16 @@ final class ShareTargetsWriter {
 
     private func observe() {
         guard let app else { return }
-        let listed = withObservationTracking { Self.listed(in: app) } onChange: { [weak self] in
-            Task { @MainActor in self?.observe() }
+        if observation == nil {
+            observation = AppModel.changePublisher(app).sink { [weak self] _ in
+                Task { @MainActor in self?.refresh() }
+            }
         }
-        guard let listed else { return }
+        refresh()
+    }
+
+    private func refresh() {
+        guard let app, let listed = Self.listed(in: app) else { return }
         pendingWrite?.cancel()
         pendingWrite = Task { [weak self] in
             try? await Task.sleep(for: Self.debounce)
@@ -104,7 +112,7 @@ final class ShareTargetsWriter {
     private func draw(_ avatar: some View, look: String, to url: URL) {
         let name = url.lastPathComponent
         guard let app, drawn[name] != look || !FileManager.default.fileExists(atPath: url.path) else { return }
-        let renderer = ImageRenderer(content: avatar.environment(app))
+        let renderer = ImageRenderer(content: avatar.environmentObject(app))
         renderer.scale = 3
         if let data = renderer.uiImage?.pngData() {
             try? data.write(to: url, options: .atomic)

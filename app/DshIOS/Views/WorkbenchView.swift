@@ -22,7 +22,7 @@ struct WorkbenchView: View {
     /// Kept by the conversation, which can also ask for a tab while this is open.
     @Binding var tab: WorkbenchTab
     let close: () -> Void
-    @Environment(AppModel.self) private var app
+    @EnvironmentObject private var app: AppModel
     @Environment(\.horizontalSizeClass) private var sizeClass
     /// A page is created on its first visit (the terminal only attaches then) and
     /// stays, so switching tabs leaves it where it was.
@@ -47,7 +47,7 @@ struct WorkbenchView: View {
                 }
             }
         }
-        .onChange(of: tab, initial: true) { _, selected in
+        .onChangeCompat(of: tab, initial: true) { _, selected in
             // A keyboard belongs to the tab that raised it.
             dismissKeyboard()
             visited.insert(selected)
@@ -90,7 +90,7 @@ struct WorkbenchView: View {
                 }
                 .padding(.horizontal, 16)
             }
-            .onChange(of: tab) { _, item in withAnimation(.snappy) { proxy.scrollTo(item) } }
+            .onChangeCompat(of: tab) { _, item in withAnimation(.compatSnappy) { proxy.scrollTo(item) } }
         }
         .padding(.vertical, 8)
     }
@@ -110,7 +110,7 @@ struct WorkbenchView: View {
 
 private struct WorkbenchTerminal: View {
     let sessionId: String
-    @Environment(AppModel.self) private var app
+    @EnvironmentObject private var app: AppModel
     @State private var connection: TerminalConnection?
     @State private var terminals: [(id: String, title: String, exited: Bool)] = []
     @State private var error: String?
@@ -133,13 +133,13 @@ private struct WorkbenchTerminal: View {
                     .padding(.horizontal, 6)
                     .padding(.top, 6)
                 } else if connection != nil {
-                    ContentUnavailableView {
+                    CompatContentUnavailableView {
                         Label("此终端已不存在，请新建终端。", systemImage: "apple.terminal")
                     } actions: {
                         Button("新建终端") { Task { await replace() } }
                     }
                 } else if let error {
-                    ContentUnavailableView {
+                    CompatContentUnavailableView {
                         Label("终端不可用", systemImage: "apple.terminal")
                     } description: {
                         Text(error)
@@ -166,7 +166,7 @@ private struct WorkbenchTerminal: View {
         .task { await reload() }
         .task(id: app.revision("settings/document-updated")) { await loadFontSize() }
         // The attachment does not survive a dropped connection; the new one brings a fresh screen.
-        .onChange(of: app.generation) { _, _ in if connection?.phase == .disconnected { connection?.connect() } }
+        .onChangeCompat(of: app.generation) { _, _ in if connection?.phase == .disconnected { connection?.connect() } }
         .onDisappear { connection?.close() }
         .alert("终端名称", isPresented: $renaming) {
             TextField("终端名称", text: $newTitle)
@@ -408,7 +408,7 @@ private struct WorkbenchChanges: View {
         NavigationStack {
             Group {
                 if changes.isEmpty {
-                    ContentUnavailableView("还没有改动", systemImage: "doc.text.magnifyingglass", description: Text("智能体改过的文件会显示在这里。"))
+                    CompatContentUnavailableView("还没有改动", systemImage: "doc.text.magnifyingglass", description: Text("智能体改过的文件会显示在这里。"))
                 } else {
                     List {
                         Section {
@@ -487,7 +487,7 @@ private struct FileDiffPage: View {
                 // Each file starts at its top.
                 .id(path)
             } else {
-                ContentUnavailableView("这个文件不在改动里了", systemImage: "doc.text.magnifyingglass")
+                CompatContentUnavailableView("这个文件不在改动里了", systemImage: "doc.text.magnifyingglass")
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -559,7 +559,7 @@ struct DiffLinesView: View {
                         .frame(minWidth: width, alignment: .leading)
                         .padding(.vertical, 14)
                 }
-                .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }
+                .onGeometryChangeCompat(for: CGFloat.self) { $0.size.width } action: { width = $0 }
             }
         }
         .font(.caption.monospaced())

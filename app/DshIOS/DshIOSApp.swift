@@ -22,7 +22,7 @@ struct DshIOSApp: App {
                 .onAppear { engine.start() }
         }
         .commands { ShellCommands() }
-        .onChange(of: scenePhase) { _, phase in
+        .onChangeCompat(of: scenePhase) { _, phase in
             // Shared from another app, but the link did not bring the app up: it is taken now.
             if phase == .active, let id = ShareInbox.waiting().first {
                 LinkInbox.shared.request = LinkRequest(link: .share(id))
@@ -42,10 +42,9 @@ struct LinkRequest: Equatable {
 
 /// A link from an App Intent, which has no window of its own: the first window to see it takes it.
 @MainActor
-@Observable
-final class LinkInbox {
+final class LinkInbox: ObservableObject {
     static let shared = LinkInbox()
-    var request: LinkRequest?
+    @Published var request: LinkRequest?
 }
 
 /// A window opened on a session. It moves on to other sessions from there, so the token keeps
@@ -59,13 +58,12 @@ struct SessionWindow: Codable, Hashable {
 /// the same sessions, and the Live Activity and background work follow one model.
 /// Each engine generation (a new listening URL after a restart) gets a fresh one.
 @MainActor
-@Observable
-final class EngineConnection {
+final class EngineConnection: ObservableObject {
     static let shared = EngineConnection()
 
-    private(set) var app: AppModel?
+    @Published private(set) var app: AppModel?
     /// The generation being connected or connected; windows that arrive during it just wait.
-    @ObservationIgnored private var generation: Int?
+    private var generation: Int?
 
     func connect(to url: URL, generation current: Int) async {
         guard current != generation else { return }
@@ -94,7 +92,7 @@ struct RootView: View {
             .onOpenURL { url in
                 if let parsed = DshLink(url: url) { link = LinkRequest(link: parsed) }
             }
-            .onChange(of: inbox.request?.token, initial: true) {
+            .onChangeCompat(of: inbox.request?.token, initial: true) { _, _ in
                 guard let request = inbox.request else { return }
                 inbox.request = nil
                 link = request
@@ -120,7 +118,7 @@ struct RootView: View {
             Group {
                 if let app = connection.app {
                     MainView(session: session, link: $link)
-                        .environment(app)
+                        .environmentObject(app)
                 } else {
                     StartupView(message: String(localized: "正在连接…"))
                 }
@@ -192,7 +190,7 @@ private struct EngineTrouble: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(12)
             }
-            .defaultScrollAnchor(.bottom)
+            .compatDefaultScrollAnchor(.bottom)
             .background(Palette.grouped, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
 
             if let safeMode {

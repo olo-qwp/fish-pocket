@@ -16,7 +16,7 @@ struct WatchSetupPage: View {
         }
     }
 
-    @Environment(AppModel.self) private var app
+    @EnvironmentObject private var app: AppModel
     @Environment(\.openURL) private var openURL
     @State private var channel: Channel = AppDistribution.channel == .testFlight ? .testFlight : .appStore
     @State private var pairing = WatchPairing.current
@@ -104,7 +104,7 @@ struct WatchSetupPage: View {
             ForEach(Channel.allCases) { item in
                 Button {
                     if channel != item { Haptics.select() }
-                    withAnimation(.snappy(duration: 0.25)) { channel = item }
+                    withAnimation(.compatSnappy(duration: 0.25)) { channel = item }
                 } label: {
                     Text(item.title)
                         .font(.subheadline.weight(channel == item ? .semibold : .medium))
@@ -327,7 +327,7 @@ private struct StatusCard: View {
         .background(Palette.background, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
         .overlay { RoundedRectangle(cornerRadius: 20, style: .continuous).strokeBorder(Palette.stroke) }
         .accessibilityElement(children: .combine)
-        .animation(.snappy, value: pairing)
+        .animation(.compatSnappy, value: pairing)
     }
 
     private var icon: String {

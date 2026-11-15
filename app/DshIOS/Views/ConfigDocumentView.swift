@@ -10,7 +10,7 @@ import SwiftUI
 /// probed at once (`settings/describe` parses the file on each call) and put back
 /// unless the engine confirms it; the text stays here to be corrected.
 struct ConfigDocumentView: View {
-    @Environment(AppModel.self) private var app
+    @EnvironmentObject private var app: AppModel
     @Environment(\.dismiss) private var dismiss
     @State private var text = ""
     @State private var original: String?
@@ -30,7 +30,7 @@ struct ConfigDocumentView: View {
     var body: some View {
         Group {
             if let failure {
-                ContentUnavailableView("无法打开配置文件", systemImage: "doc.badge.ellipsis", description: Text(failure))
+                CompatContentUnavailableView("无法打开配置文件", systemImage: "doc.badge.ellipsis", description: Text(failure))
             } else {
                 TextEditor(text: $text)
                     .font(.footnote.monospaced())
@@ -54,7 +54,7 @@ struct ConfigDocumentView: View {
                     Button("保存") { Task { await save() } }.fontWeight(.semibold).disabled(saving)
                 }
             } else {
-                ToolbarItem(placement: .topBarTrailing) {
+                ToolbarItem(placement: .navigationBarTrailing) {
                     ShareLink(item: file)
                 }
             }

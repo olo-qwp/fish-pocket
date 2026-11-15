@@ -64,7 +64,7 @@ struct PressableCardStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .scaleEffect(configuration.isPressed ? 0.98 : 1)
-            .animation(.snappy(duration: 0.2), value: configuration.isPressed)
+            .animation(.compatSnappy(duration: 0.2), value: configuration.isPressed)
     }
 }
 
@@ -80,7 +80,7 @@ struct SignInSheet: View {
     /// The Fish Pocket credits alternative; nil hides it.
     var useFishPocket: (() -> Void)?
 
-    @Environment(AppModel.self) private var app
+    @EnvironmentObject private var app: AppModel
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var colorScheme
     @State private var safari: SFSafariViewController?
@@ -108,7 +108,7 @@ struct SignInSheet: View {
                 actions
             } else {
                 ScrollView { choices }
-                    .scrollBounceBehavior(.basedOnSize)
+                    .compatScrollBounceBehavior()
                 Spacer(minLength: 0)
             }
         }
@@ -119,14 +119,14 @@ struct SignInSheet: View {
         .background(Palette.background)
         .presentationDetents([.medium, Self.choicesDetent, .large], selection: $detent)
         // Waiting on the browser needs little room; back to the choices, tall again.
-        .onChange(of: account.attemptActive) { _, active in detent = active ? .medium : Self.choicesDetent }
+        .onChangeCompat(of: account.attemptActive) { _, active in detent = active ? .medium : Self.choicesDetent }
         .presentationDragIndicator(.visible)
         .interactiveDismissDisabled(phase == "committing")
         .task {
             if autoStart && !account.attemptActive && !account.signedIn { await start() }
             else { openBrowserIfNeeded() }
         }
-        .onChange(of: account.view) { _, _ in update() }
+        .onChangeCompat(of: account.view) { _, _ in update() }
         .onDisappear {
             // Closing the dialog gives the attempt up, as on the web; Safari covering it does not.
             guard safari?.presentingViewController == nil else { return }
@@ -275,7 +275,7 @@ struct SignInSheet: View {
 /// usage and top-up, with the API Key alternative and sign-out below.
 /// The DeepSeek API key as a way in of its own (设置 › 连接方式): set, replaced or cleared in an alert.
 struct DeepSeekKeyRow: View {
-    @Environment(AppModel.self) private var app
+    @EnvironmentObject private var app: AppModel
     @State private var keySet = false
     @State private var editing = false
     @State private var draft = ""
@@ -317,7 +317,7 @@ struct DeepSeekKeyRow: View {
 }
 
 struct AccountPage: View {
-    @Environment(AppModel.self) private var app
+    @EnvironmentObject private var app: AppModel
     @State private var signingIn = false
     @State private var autoStart = false
     @State private var signOutCheck: SignOutCheck?
@@ -352,7 +352,7 @@ struct AccountPage: View {
         .task { await account.refresh() }
         .refreshable { await account.refresh() }
         .sheet(isPresented: $signingIn) {
-            SignInSheet(autoStart: autoStart).environment(app)
+            SignInSheet(autoStart: autoStart).environmentObject(app)
         }
         .alert("退出登录", isPresented: Binding(get: { signOutCheck != nil }, set: { if !$0 { signOutCheck = nil } }), presenting: signOutCheck) { _ in
             Button("取消", role: .cancel) {}
@@ -538,7 +538,7 @@ struct AccountAvatar: View {
 
 /// Shell notices from the account: the toast line and the bonus card stack.
 struct AccountNotices: View {
-    @Environment(AppModel.self) private var app
+    @EnvironmentObject private var app: AppModel
 
     var body: some View {
         VStack(spacing: 8) {
@@ -564,8 +564,8 @@ struct AccountNotices: View {
             }
         }
         .padding(.top, 4)
-        .animation(.snappy, value: app.account.toast)
-        .animation(.snappy, value: app.account.bonuses)
+        .animation(.compatSnappy, value: app.account.toast)
+        .animation(.compatSnappy, value: app.account.bonuses)
     }
 }
 

@@ -6,9 +6,9 @@ import UniformTypeIdentifiers
 /// with what the agent on the computer offers behind ＋: pictures and files where it takes them,
 /// its model and permission, and its slash commands as the draft starts with `/`.
 struct RemoteComposer: View {
-    @Bindable var model: RemoteSessionModel
+    @ObservedObject var model: RemoteSessionModel
     let openOptions: () -> Void
-    @Environment(AppModel.self) private var app
+    @EnvironmentObject private var app: AppModel
     @FocusState private var focused: Bool
     @State private var showPhotos = false
     @State private var showFiles = false
@@ -58,7 +58,7 @@ struct RemoteComposer: View {
             if model.draft.hasPrefix("/"), model.commands.isEmpty { await model.loadCommands() }
         }
         .photosPicker(isPresented: $showPhotos, selection: $photos, maxSelectionCount: max(1, Self.maxFiles - model.attachments.count - reading.count), matching: .any(of: [.images, .videos]), preferredItemEncoding: .current)
-        .onChange(of: photos) { _, items in
+        .onChangeCompat(of: photos) { _, items in
             guard !items.isEmpty else { return }
             photos = []
             Task { await add(photos: items) }
@@ -196,7 +196,7 @@ struct RemoteComposer: View {
             }
         }
         .frame(maxHeight: 220)
-        .scrollBounceBehavior(.basedOnSize)
+        .compatScrollBounceBehavior()
         .background(Palette.grouped, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
     }
 

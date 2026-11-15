@@ -3,7 +3,7 @@ import SwiftUI
 /// What a Bot asks of the user in its own chat beyond a question or a form: a key, a
 /// connector, a mail to approve, a skill it learned. Each ends the Bot's turn until answered.
 struct BotRequestCards: View {
-    @Environment(AppModel.self) private var app
+    @EnvironmentObject private var app: AppModel
     let bot: BotInfo
 
     var body: some View {
@@ -19,7 +19,7 @@ struct BotRequestCards: View {
 
 /// A key the Bot needs: typed here, kept on the device, never shown to the model.
 private struct SecretRequestCard: View {
-    @Environment(AppModel.self) private var app
+    @EnvironmentObject private var app: AppModel
     let bot: BotInfo
     let request: JSON
     @State private var value = ""
@@ -68,7 +68,7 @@ private struct SecretRequestCard: View {
 
 /// A connector the Bot wants: connecting it on its page settles the card by itself.
 private struct ConnectorRequestCard: View {
-    @Environment(AppModel.self) private var app
+    @EnvironmentObject private var app: AppModel
     let request: JSON
     @State private var open = false
 
@@ -94,7 +94,7 @@ private struct ConnectorRequestCard: View {
 
 /// A mail the Bot wrote: checked and sent from here, or cancelled.
 private struct MailSendCard: View {
-    @Environment(AppModel.self) private var app
+    @EnvironmentObject private var app: AppModel
     let bot: BotInfo
     let request: JSON
     @State private var to = ""
@@ -157,7 +157,7 @@ private struct MailSendCard: View {
 
 /// Something the Bot learned on its own: a skill to keep, or an edit to the folder's AGENTS.md.
 private struct LearningCard: View {
-    @Environment(AppModel.self) private var app
+    @EnvironmentObject private var app: AppModel
     let bot: BotInfo
     let proposal: JSON
     @State private var expanded = false
@@ -184,7 +184,7 @@ private struct LearningCard: View {
                 Button("采纳") { answer(true) }.buttonStyle(.capsule(height: 36, fill: false))
                 Button("不用") { answer(false) }.buttonStyle(.capsule(.outline, height: 36, fill: false))
                 Spacer()
-                Button(expanded ? "收起" : "看内容") { withAnimation(.snappy) { expanded.toggle() } }.font(.footnote)
+                Button(expanded ? "收起" : "看内容") { withAnimation(.compatSnappy) { expanded.toggle() } }.font(.footnote)
             }
         }
         .disabled(sending)
@@ -201,7 +201,7 @@ private struct LearningCard: View {
 /// A quick question on the side of a Bot's chat: answered from what the chat holds so far,
 /// with no tools, and nothing goes into the chat itself.
 struct BotSideChatSheet: View {
-    @Environment(AppModel.self) private var app
+    @EnvironmentObject private var app: AppModel
     @Environment(\.dismiss) private var dismiss
     let botId: String
     @State private var question = ""
@@ -244,7 +244,7 @@ struct BotSideChatSheet: View {
                     .padding(20)
                     .modifier(LinkOpening())
                 }
-                .onChange(of: chat?["entries"].array.count) { _, _ in withAnimation { proxy.scrollTo("end") } }
+                .onChangeCompat(of: chat?["entries"].array.count) { _, _ in withAnimation { proxy.scrollTo("end") } }
             }
             .safeAreaInset(edge: .bottom) {
                 HStack(spacing: 8) {
@@ -266,7 +266,7 @@ struct BotSideChatSheet: View {
             .closeButton(dismiss)
             .toolbar {
                 if !chats.isEmpty {
-                    ToolbarItem(placement: .topBarLeading) {
+                    ToolbarItem(placement: .navigationBarLeading) {
                         Menu {
                             Button { fresh = true; chatId = nil } label: { Label("新的提问", systemImage: "plus") }
                             Section("之前问过的") {

@@ -5,13 +5,12 @@ import UIKit
 /// favicon on a white tile, or a globe while there is none. Fetched from the linked site itself,
 /// once per host while the app runs; a local address is never asked.
 @MainActor
-@Observable
-final class LinkIcons {
+final class LinkIcons: ObservableObject {
     static let shared = LinkIcons()
 
     /// Tiles drawn, by host.
-    private var tiles: [String: UIImage] = [:]
-    @ObservationIgnored private var asked: Set<String> = []
+    @Published private var tiles: [String: UIImage] = [:]
+    private var asked: Set<String> = []
 
     private static let session: URLSession = {
         let configuration = URLSessionConfiguration.ephemeral
