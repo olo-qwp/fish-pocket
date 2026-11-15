@@ -1,5 +1,6 @@
 import SwiftUI
 import Combine
+import WidgetKit
 
 /// `Animation.snappy` and `.smooth` are iOS 17; springs and ease-in-out carry the same feel before.
 extension Animation {
@@ -180,7 +181,10 @@ struct OnGeometryChangeCompat<T: Equatable>: ViewModifier {
                     Color.clear.preference(key: GeometryValueKey<T>.self, value: transform(proxy))
                 }
             )
-            .onPreferenceChange(GeometryValueKey<T>.self) { action($0) }
+            .onPreferenceChange(GeometryValueKey<T>.self) { value in
+                // The key's default is nil, so "no measurement yet" never fires the action.
+                if let value { action(value) }
+            }
     }
 }
 
@@ -277,6 +281,29 @@ extension View {
     func compatScrollIndicatorsFlash() -> some View {
         if #available(iOS 17.0, *) {
             scrollIndicatorsFlash(onAppear: true)
+        } else {
+            self
+        }
+    }
+
+    /// `containerBackground(_:for: .widget)` is iOS 17. Before that a widget paints its own
+    /// background: the system still clips it to the widget's shape, so the same colour goes
+    /// behind the content instead.
+    @ViewBuilder
+    func compatWidgetBackground<S: View>(_ background: S) -> some View {
+        if #available(iOS 17.0, *) {
+            containerBackground(background, for: .widget)
+        } else {
+            self.background(background)
+        }
+    }
+
+    /// The accessory families ask for a clear container background: on iOS 16 there is no
+    /// container to clear, and painting nothing is the same thing.
+    @ViewBuilder
+    func compatWidgetClearBackground() -> some View {
+        if #available(iOS 17.0, *) {
+            containerBackground(for: .widget) { Color.clear }
         } else {
             self
         }

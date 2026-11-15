@@ -22,20 +22,20 @@ private struct SessionsWidgetView: View {
     var body: some View {
         switch family {
         case .accessoryCircular:
-            CircularSessions(entry: entry).containerBackground(for: .widget) { Color.clear }
+            CircularSessions(entry: entry).compatWidgetClearBackground()
         case .accessoryRectangular:
-            RectangularSessions(entry: entry).containerBackground(for: .widget) { Color.clear }
+            RectangularSessions(entry: entry).compatWidgetClearBackground()
         case .accessoryInline:
-            InlineSessions(entry: entry).containerBackground(for: .widget) { Color.clear }
+            InlineSessions(entry: entry).compatWidgetClearBackground()
         case .systemMedium:
             SessionList(entry: entry, rows: 3, details: false)
-                .containerBackground(WidgetPalette.background, for: .widget)
+                .compatWidgetBackground(WidgetPalette.background)
         case .systemLarge:
             SessionList(entry: entry, rows: 6, details: true)
-                .containerBackground(WidgetPalette.background, for: .widget)
+                .compatWidgetBackground(WidgetPalette.background)
         default:
             SmallSessions(entry: entry)
-                .containerBackground(WidgetPalette.background, for: .widget)
+                .compatWidgetBackground(WidgetPalette.background)
         }
     }
 }

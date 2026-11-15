@@ -165,18 +165,32 @@ private struct ApprovalButtons: View {
 
     var body: some View {
         HStack(spacing: 8) {
-            Button(intent: AnswerApprovalIntent(eventId: approval.eventId, agentId: approval.agentId, allow: false)) {
-                Text("拒绝").frame(maxWidth: .infinity)
-            }
-            .tint(.gray)
-            Button(intent: AnswerApprovalIntent(eventId: approval.eventId, agentId: approval.agentId, allow: true)) {
-                Text("允许").fontWeight(.semibold).frame(maxWidth: .infinity)
-            }
-            .tint(Tint.waiting)
+            button(allow: false, title: "拒绝", tint: .gray)
+            button(allow: true, title: "允许", tint: Tint.waiting)
         }
         .buttonStyle(.borderedProminent)
         .buttonBorderShape(.capsule)
         .font(.subheadline)
+    }
+
+    /// `Button(intent:)` — tapping an answer from inside the Live Activity — is iOS 17. On
+    /// 16.1 the two choices are drawn but do not answer: there, the buttons on the
+    /// notification itself are what answer them.
+    @ViewBuilder
+    private func button(allow: Bool, title: LocalizedStringKey, tint: Color) -> some View {
+        if #available(iOS 17.0, *) {
+            Button(intent: AnswerApprovalIntent(eventId: approval.eventId, agentId: approval.agentId, allow: allow)) {
+                Text(title).fontWeight(allow ? .semibold : .regular).frame(maxWidth: .infinity)
+            }
+            .tint(tint)
+        } else {
+            Text(title)
+                .fontWeight(allow ? .semibold : .regular)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 6)
+                .background(tint.opacity(0.18), in: Capsule())
+                .foregroundStyle(tint)
+        }
     }
 }
 
