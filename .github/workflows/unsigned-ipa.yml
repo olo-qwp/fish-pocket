@@ -1,4 +1,4 @@
-# Builds an unsigned .ipa for iOS 16.1+ and leaves it as a workflow artifact.
+# Builds an unsigned .ipa for iOS 16.2+ and leaves it as a workflow artifact.
 #
 # This is the same preparation Xcode Cloud does (app/ci_scripts/ci_post_clone.sh: fetch
 # nodejs-mobile / Python / FFmpeg, build libgit2, assemble the engine, generate the
@@ -12,8 +12,8 @@
 #   macos-26   the only image that carries the iOS 26 SDK
 #   Xcode 26.x the app calls AlarmKit / glassEffect / safeAreaBar behind `#available`,
 #              so those symbols must exist in the SDK; Xcode 27 is avoided because its
-#              minimum supported deployment target may no longer accept 16.1.
-name: Unsigned IPA (iOS 16.1+)
+#              minimum supported deployment target may no longer accept 16.2.
+name: Unsigned IPA (iOS 16.2+)
 
 on:
   workflow_dispatch:
@@ -27,7 +27,8 @@ on:
     branches: [ios16-support]
 
 permissions:
-  contents: read
+  # write: the last step publishes the .ipa as a release asset.
+  contents: write
 
 concurrency:
   group: unsigned-ipa-${{ github.ref }}
@@ -113,6 +114,45 @@ jobs:
           name: fish-pocket-unsigned-ipa
           path: ${{ runner.temp }}/out/*.ipa
           retention-days: 7
+
+      # Artifacts vanish after 7 days and need a login to download; a release asset
+      # is the link you can actually hand to a phone. Re-running the same version
+      # replaces the asset instead of failing on a duplicate tag.
+      - name: Publish to Releases
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          app="$RUNNER_TEMP/DshIOS.xcarchive/Products/Applications/DshIOS.app"
+          version="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$app/Info.plist")"
+          build="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$app/Info.plist")"
+          minos="$(/usr/libexec/PlistBuddy -c 'Print :MinimumOSVersion' "$app/Info.plist")"
+          ipa="$(ls "$RUNNER_TEMP"/out/*.ipa | head -1)"
+          tag="ios${minos}-${version}-${build}"
+
+          cat > "$RUNNER_TEMP/notes.md" <<EOF
+          Unsigned IPA, built from \`${GITHUB_SHA}\` on ${GITHUB_REF_NAME}.
+
+          - Version: ${version} (${build})
+          - Minimum iOS: **${minos}** — ActivityKit's \`ActivityContent\` API is why the floor is not lower
+          - Unsigned on purpose: install with TrollStore, or re-sign with Sideloadly / AltStore / ESign / 爱思助手
+          - First launch unpacks the Node.js and Python runtimes; expect 30–90 s before the first reply
+
+          Workflow run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}
+          EOF
+          # YAML indents the heredoc body, Markdown would read that as a code block.
+          sed -i.bak -E 's/^[[:space:]]+//' "$RUNNER_TEMP/notes.md" && cat "$RUNNER_TEMP/notes.md"
+
+          if gh release view "$tag" >/dev/null 2>&1; then
+            gh release upload "$tag" "$ipa" --clobber
+          else
+            gh release create "$tag" "$ipa" \
+              --title "Fish Pocket ${version} (${build}) — iOS ${minos}+ unsigned IPA" \
+              --notes-file "$RUNNER_TEMP/notes.md" \
+              --latest
+          fi
+          gh release view "$tag" --json url,assets --jq '.url, (.assets[] | "\(.name)  \(.size) bytes")'
 
       # On failure the log is the only way to see what the compiler objected to
       # without a Mac in front of you.
