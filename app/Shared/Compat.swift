@@ -290,7 +290,7 @@ extension View {
     /// background: the system still clips it to the widget's shape, so the same colour goes
     /// behind the content instead.
     @ViewBuilder
-    func compatWidgetBackground<S: View>(_ background: S) -> some View {
+    func compatWidgetBackground<S: ShapeStyle>(_ background: S) -> some View {
         if #available(iOS 17.0, *) {
             containerBackground(background, for: .widget)
         } else {
