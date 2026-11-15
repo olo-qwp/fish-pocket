@@ -361,7 +361,7 @@ extension View {
     /// `navigationDestination(item:)` is iOS 17. Below it the same push is driven by a
     /// binding that reads "is there an item", and clears it when the page is popped.
     @ViewBuilder
-    func compatNavigationDestination<Item, Destination: View>(
+    func compatNavigationDestination<Item: Hashable, Destination: View>(
         item: Binding<Item?>,
         @ViewBuilder destination: @escaping (Item) -> Destination
     ) -> some View {
