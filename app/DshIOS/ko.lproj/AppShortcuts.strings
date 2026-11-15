@@ -1,0 +1,5 @@
+/* App Shortcuts phrases. A .strings table, not a String Catalog: the catalog form
+   of this file is only read on iOS 17 and the project builds for 16.2. */
+"${applicationName} 新对话" = "${applicationName} 새 대화";
+"在 ${applicationName} 里开始新对话" = "${applicationName}에서 새 대화 시작";
+"用 ${applicationName} 新建对话" = "${applicationName}으로 새 대화 만들기";
