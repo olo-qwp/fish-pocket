@@ -6,7 +6,6 @@ struct DshIOSApp: App {
     static let window = "conversation"
 
     @StateObject private var engine = NodeEngine.shared
-    @Environment(\.scenePhase) private var scenePhase
 
     init() {
         WhatsNew.noteLaunch()
@@ -20,9 +19,19 @@ struct DshIOSApp: App {
             RootView(session: window?.session)
                 .environmentObject(engine)
                 .onAppear { engine.start() }
+                .modifier(ScenePhaseWatcher())
         }
         .commands { ShellCommands() }
-        .onChangeCompat(of: scenePhase) { _, phase in
+    }
+}
+
+/// `Scene.onChange` is iOS 17: there is nothing to watch on a Scene before that, so the
+/// phase is read from inside the window, where `.onChange` has always existed.
+private struct ScenePhaseWatcher: ViewModifier {
+    @Environment(\.scenePhase) private var scenePhase
+
+    func body(content: Content) -> some View {
+        content.onChangeCompat(of: scenePhase) { _, phase in
             // Shared from another app, but the link did not bring the app up: it is taken now.
             if phase == .active, let id = ShareInbox.waiting().first {
                 LinkInbox.shared.request = LinkRequest(link: .share(id))

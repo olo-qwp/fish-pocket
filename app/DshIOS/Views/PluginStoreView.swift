@@ -154,8 +154,8 @@ private struct StoreDiscoverPage: View {
         }
         .onGeometryChangeCompat(for: CGFloat.self) { $0.size.width } action: { width = $0 }
         .sheet(item: $choice) { StoreInstallConfirm(choice: $0, marketTitle: localized(market.result?["title"] ?? .null)) }
-        .onChange(of: searchFocused) { updateSearching() }
-        .onChange(of: search) { updateSearching() }
+        .onChange(of: searchFocused) { _ in updateSearching() }
+        .onChange(of: search) { _ in updateSearching() }
         // Keystrokes settle for 250 ms before a read.
         .task(id: search) {
             guard search != market.query.text else { return }

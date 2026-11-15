@@ -250,7 +250,7 @@ struct JobOutputView: View {
                     Color.clear.frame(height: 1).id("bottom")
                         // iOS 17 has no scroll geometry; this marker's place in the scroll view says the same.
                         .onGeometryChangeCompat(for: OutputEnd.self) { geometry in
-                            OutputEnd(contentHeight: geometry.frame(in: .named("output")).maxY, distance: -(geometry.bounds(of: .scrollView)?.maxY ?? 0))
+                            OutputEnd(contentHeight: geometry.frame(in: .named("output")).maxY, distance: scrollDistance(geometry))
                         } action: { new in
                             if new.contentHeight > end.contentHeight, end.distance <= OutputEnd.threshold { proxy.scrollTo("bottom", anchor: .bottom) }
                             end = new
@@ -299,6 +299,15 @@ struct JobOutputView: View {
     }
 
     /// Where the end of the output sits, relative to the bottom of the page.
+    /// `GeometryProxy.bounds(of: .scrollView)` is iOS 17. On 16 the page falls back to
+    /// following new output by height alone, which is what the threshold checks anyway.
+    private func scrollDistance(_ geometry: GeometryProxy) -> CGFloat {
+        if #available(iOS 17.0, *) {
+            return -(geometry.bounds(of: .scrollView)?.maxY ?? 0)
+        }
+        return 0
+    }
+
     private struct OutputEnd: Equatable {
         static let threshold: CGFloat = 40
         var contentHeight: CGFloat = 0

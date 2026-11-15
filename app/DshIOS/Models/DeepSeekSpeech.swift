@@ -229,7 +229,7 @@ final class DeepSeekTranscriber: SpeechTranscriber {
         level: @escaping @MainActor (Float) -> Void,
         failed: @escaping @MainActor (Error) -> Void
     ) async throws {
-        guard AVAudioApplication.shared.recordPermission == .granted else { throw VoiceError.microphoneDenied }
+        guard MicrophoneCompat.permission == .granted else { throw VoiceError.microphoneDenied }
         let recording = recording
         mic.onChunk = { recording.append($0) }
         mic.onLevel = { value in Task { @MainActor in level(value) } }

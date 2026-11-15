@@ -225,6 +225,15 @@ struct AttachmentThumb: View {
 
 /// Full-screen image: pinch or double-tap to zoom, drag to pan, share or close.
 struct ImageViewer: View {
+    /// `MagnifyGesture` is iOS 17; on 16 the older pinch gesture reports the same value as
+    /// a plain scale, which is all this viewer reads.
+    private var zoomGesture: AnyGesture<CGFloat> {
+        if #available(iOS 17.0, *) {
+            return AnyGesture(MagnifyGesture().map(\.magnification))
+        }
+        return AnyGesture(MagnificationGesture())
+    }
+
     let image: UIImage
     var name: String?
     @Environment(\.dismiss) private var dismiss
@@ -242,8 +251,8 @@ struct ImageViewer: View {
                 .scaleEffect(scale)
                 .offset(offset)
                 .gesture(
-                    MagnifyGesture()
-                        .onChanged { scale = max(1, min(6, lastScale * $0.magnification)) }
+                    zoomGesture
+                        .onChanged { scale = max(1, min(6, lastScale * $0)) }
                         .onEnded { _ in
                             lastScale = scale
                             if scale == 1 { withAnimation(.compatSnappy) { offset = .zero }; lastOffset = .zero }

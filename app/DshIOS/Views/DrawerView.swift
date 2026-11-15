@@ -101,11 +101,11 @@ struct DrawerView: View {
             .navigationDestination(for: Route.self) { _ in archivedPage }
         }
         .task(id: search) { await searchRemote() }
-        .onChange(of: searchRequest) { openSearch() }
+        .onChange(of: searchRequest) { _ in openSearch() }
         .fullScreenCover(isPresented: $searchOpen) { searchPage }
-        .onChange(of: groupBy) { Haptics.select() }
-        .onChange(of: selection) { revealSelection() }
-        .onChange(of: selectionRowGroupId) { revealSelection() }
+        .onChange(of: groupBy) { _ in Haptics.select() }
+        .onChange(of: selection) { _ in revealSelection() }
+        .onChange(of: selectionRowGroupId) { _ in revealSelection() }
         .confirmationDialog("删除「\(removingWorkspace?.displayTitle ?? "")」？", isPresented: Binding(get: { removingWorkspace != nil }, set: { if !$0 { removingWorkspace = nil } }), titleVisibility: .visible) {
             Button("删除工作区", role: .destructive) {
                 if let workspace = removingWorkspace {
@@ -166,7 +166,7 @@ struct DrawerView: View {
             }
             .background(Palette.background)
             .navigationBarTitleDisplayMode(.inline)
-            .searchable(text: $search, isPresented: $searchActive, prompt: "搜索会话")
+            .compatSearchable(text: $search, isPresented: $searchActive, prompt: "搜索会话")
             .textInputAutocapitalization(.never)
             .autocorrectionDisabled()
             .searchFieldAtBottom()
@@ -177,7 +177,7 @@ struct DrawerView: View {
         .compatPresentationBackground(.clear)
         .onAppear { withAnimation(.easeOut(duration: 0.2)) { searchShown = true } }
         // The field's own ✕ (取消 before iOS 26) is the way out.
-        .onChange(of: searchActive) { if !searchActive { closeSearch() } }
+        .onChange(of: searchActive) { _ in if !searchActive { closeSearch() } }
     }
 
     private func openSearch() {
@@ -189,7 +189,7 @@ struct DrawerView: View {
     private func closeSearch() {
         guard searchOpen, searchShown else { return }
         searchActive = false
-        withAnimation(.easeIn(duration: 0.15)) { searchShown = false } completion: {
+        compatWithAnimation(.easeIn(duration: 0.15), { searchShown = false }) {
             search = ""
             withoutAnimation { searchOpen = false }
         }

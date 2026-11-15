@@ -2,9 +2,10 @@ name: DshIOS
 options:
   bundleIdPrefix: com.wsw
   deploymentTarget:
-    # iOS 16.1, not 17.0: the app is a SwiftUI 16 build now. 16.1 is the floor because
-    # ActivityKit (the Live Activity) starts there; every device that runs 16.0 runs 16.7.
-    iOS: "16.1"
+    # iOS 16.2, not 17.0: the app is a SwiftUI 16 build now. 16.2 is the floor because
+    # ActivityContent and Activity.request(attributes:content:) — what the Live Activity
+    # is built on — start there; every device that runs 16.0 runs 16.7.
+    iOS: "16.2"
     # The watch app (DshWatch): what an iPhone on iOS 17 pairs with. iOS 16 devices simply
     # do not install it (watchOS 10 needs iOS 17), the phone app runs without it.
     watchOS: "10.0"

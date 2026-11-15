@@ -1,6 +1,7 @@
 import SwiftUI
 import Combine
 import WidgetKit
+import AVFoundation
 
 /// `Animation.snappy` and `.smooth` are iOS 17; springs and ease-in-out carry the same feel before.
 extension Animation {
@@ -307,5 +308,125 @@ extension View {
         } else {
             self
         }
+    }
+
+    /// `AccessibilityTraits.isToggle` is iOS 17. On 16 the switch keeps its label and value,
+    /// which is what VoiceOver reads out anyway.
+    @ViewBuilder
+    func compatToggleTrait() -> some View {
+        if #available(iOS 17.0, *) {
+            accessibilityAddTraits(.isToggle)
+        } else {
+            self
+        }
+    }
+}
+
+// MARK: - Microphone permission (AVAudioApplication is iOS 17)
+
+enum MicrophonePermission { case granted, denied, undetermined }
+
+/// `AVAudioApplication` replaced `AVAudioSession`'s recording-permission calls in iOS 17.
+enum MicrophoneCompat {
+    static var permission: MicrophonePermission {
+        if #available(iOS 17.0, *) {
+            switch AVAudioApplication.shared.recordPermission {
+            case .granted: return .granted
+            case .denied: return .denied
+            default: return .undetermined
+            }
+        }
+        switch AVAudioSession.sharedInstance().recordPermission {
+        case .granted: return .granted
+        case .denied: return .denied
+        default: return .undetermined
+        }
+    }
+
+    static func request() async -> Bool {
+        if #available(iOS 17.0, *) {
+            return await AVAudioApplication.requestRecordPermission()
+        }
+        return await withCheckedContinuation { continuation in
+            AVAudioSession.sharedInstance().requestRecordPermission { granted in
+                continuation.resume(returning: granted)
+            }
+        }
+    }
+}
+
+// MARK: - View APIs that only exist from iOS 17
+
+extension View {
+    /// `navigationDestination(item:)` is iOS 17. Below it the same push is driven by a
+    /// binding that reads "is there an item", and clears it when the page is popped.
+    @ViewBuilder
+    func compatNavigationDestination<Item, Destination: View>(
+        item: Binding<Item?>,
+        @ViewBuilder destination: @escaping (Item) -> Destination
+    ) -> some View {
+        if #available(iOS 17.0, *) {
+            navigationDestination(item: item, destination: destination)
+        } else {
+            navigationDestination(isPresented: Binding(
+                get: { item.wrappedValue != nil },
+                set: { shown in if !shown { item.wrappedValue = nil } }
+            )) {
+                if let value = item.wrappedValue { destination(value) }
+            }
+        }
+    }
+
+    /// `searchable(text:isPresented:prompt:)` is iOS 17: on 16 the field is always there,
+    /// and the page it lives on is what gets shown and hidden.
+    @ViewBuilder
+    func compatSearchable(text: Binding<String>, isPresented: Binding<Bool>, prompt: LocalizedStringKey) -> some View {
+        if #available(iOS 17.0, *) {
+            searchable(text: text, isPresented: isPresented, prompt: prompt)
+        } else {
+            searchable(text: text, prompt: prompt)
+        }
+    }
+
+    /// `ControlGroupStyle.compactMenu` is iOS 16.4: before that the default style is used.
+    @ViewBuilder
+    func compatControlGroupStyle() -> some View {
+        if #available(iOS 16.4, *) {
+            controlGroupStyle(.compactMenu)
+        } else {
+            self
+        }
+    }
+
+    /// `MagnifyGesture` is iOS 17; `MagnificationGesture` reports the same pinch as a scale.
+    @ViewBuilder
+    func compatMagnifyGesture(onChanged: @escaping (CGFloat) -> Void, onEnded: @escaping (CGFloat) -> Void) -> some View {
+        if #available(iOS 17.0, *) {
+            gesture(
+                MagnifyGesture()
+                    .onChanged { onChanged($0.magnification) }
+                    .onEnded { onEnded($0.magnification) }
+            )
+        } else {
+            gesture(
+                MagnificationGesture()
+                    .onChanged(onChanged)
+                    .onEnded(onEnded)
+            )
+        }
+    }
+
+}
+
+// MARK: - Animation completion (iOS 17)
+
+/// `withAnimation(_:completion:)` is iOS 17. Before it the work after the animation is
+/// queued for the length the animation asks for.
+func compatWithAnimation(_ animation: Animation, _ body: () -> Void, completion: @escaping () -> Void) {
+    if #available(iOS 17.0, *) {
+        withAnimation(animation, body, completion: completion)
+    } else {
+        withAnimation(animation, body)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25, execute: completion)
     }
 }

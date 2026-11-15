@@ -58,6 +58,21 @@ struct RemoteConversationView: View {
         }
     }
 
+    /// Drawn outside `content`: inline, the overlay's long modifier chain made the type
+    /// checker give up once the session model became an ObservableObject.
+    @ViewBuilder
+    private func backToBottom(_ proxy: ScrollViewProxy, _ model: RemoteSessionModel) -> some View {
+        if !atBottom, !model.rows.isEmpty {
+            FloatingIcon(systemName: "chevron.down", label: "回到底部") {
+                atBottom = true
+                scrollToBottom(proxy)
+            }
+            .padding(.trailing, 16)
+            .padding(.bottom, 12)
+            .transition(.opacity.combined(with: .scale(scale: 0.8)))
+        }
+    }
+
     @ViewBuilder
     private func content(_ model: RemoteSessionModel) -> some View {
         ScrollViewReader { proxy in
@@ -83,18 +98,8 @@ struct RemoteConversationView: View {
             }
             .onChangeCompat(of: model.busy) { _, busy in if busy, atBottom { scrollToBottom(proxy) } }
             .overlay(alignment: .bottomTrailing) {
-                ZStack {
-                    if !atBottom, !model.rows.isEmpty {
-                        FloatingIcon(systemName: "chevron.down", label: "回到底部") {
-                            atBottom = true
-                            scrollToBottom(proxy)
-                        }
-                        .padding(.trailing, 16)
-                        .padding(.bottom, 12)
-                        .transition(.opacity.combined(with: .scale(scale: 0.8)))
-                    }
-                }
-                .animation(.compatSnappy(duration: 0.18), value: atBottom)
+                backToBottom(proxy, model)
+                    .animation(.compatSnappy(duration: 0.18), value: atBottom)
             }
         }
         .background(Palette.background)
@@ -138,7 +143,7 @@ struct RemoteConversationView: View {
         ))
         .onChangeCompat(of: presented(model)?.id) { _, id in if id != nil { dismissKeyboard() } }
         .onChangeCompat(of: waiting(model)?.id) { old, new in if let new, new != old { Haptics.warning() } }
-        .onChange(of: model.optionsRequest) { panel = .options }
+        .onChange(of: model.optionsRequest) { _ in panel = .options }
         // Archived from here or from another device: the main view moves on, as with a local session.
         .onChangeCompat(of: model.meta?.archived) { _, archived in if archived == true { selection = nil } }
         // Read once it is on screen, and again when a turn ends while it is.

@@ -105,8 +105,8 @@ struct SettingsView: View {
                 } footer: {
                     Text(backgroundFooter)
                 }
-                .onChange(of: keepAlive) { BackgroundKeeper.shared.settingsChanged() }
-                .onChange(of: continuedProcessing) { BackgroundKeeper.shared.settingsChanged() }
+                .onChange(of: keepAlive) { _ in BackgroundKeeper.shared.settingsChanged() }
+                .onChange(of: continuedProcessing) { _ in BackgroundKeeper.shared.settingsChanged() }
                 .alert("关闭静音音频？", isPresented: $confirmingKeepAliveOff) {
                     Button("取消", role: .cancel) {}
                     Button("关闭", role: .destructive) { keepAlive = false }
@@ -122,7 +122,7 @@ struct SettingsView: View {
                 } footer: {
                     Text("关掉后，主屏幕和锁屏小组件只显示数量和状态。设备锁定时，标题总会被打码。")
                 }
-                .onChange(of: widgetTitles) { WidgetSnapshotWriter.shared.refresh() }
+                .onChange(of: widgetTitles) { _ in WidgetSnapshotWriter.shared.refresh() }
 
                 Section {
                     if let theme = mirror.namespace("ui-theme") {

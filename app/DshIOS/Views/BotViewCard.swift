@@ -193,7 +193,13 @@ struct BotViewBody: View {
                 case "line": LineMark(x: .value("", point.category), y: .value("", point.value)).foregroundStyle(by: .value("", point.series))
                 case "area": AreaMark(x: .value("", point.category), y: .value("", point.value)).foregroundStyle(by: .value("", point.series))
                 case "hbar": BarMark(x: .value("", point.value), y: .value("", point.category)).foregroundStyle(by: .value("", point.series))
-                case "donut": SectorMark(angle: .value("", point.value), innerRadius: .ratio(0.6)).foregroundStyle(by: .value("", point.category))
+                case "donut":
+                    // SectorMark is iOS 17: below that a bar says the same about the parts.
+                    if #available(iOS 17.0, *) {
+                        SectorMark(angle: .value("", point.value), innerRadius: .ratio(0.6)).foregroundStyle(by: .value("", point.category))
+                    } else {
+                        BarMark(x: .value("", point.value), y: .value("", point.category)).foregroundStyle(by: .value("", point.category))
+                    }
                 default: BarMark(x: .value("", point.category), y: .value("", point.value)).foregroundStyle(by: .value("", point.series))
                 }
             }

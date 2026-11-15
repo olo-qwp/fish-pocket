@@ -39,7 +39,7 @@ struct BotReactionMenu: View {
                     Button(emoji) { BotReactions.shared.toggle(emoji, for: key) }
                 }
             }
-            .controlGroupStyle(.compactMenu)
+            .compatControlGroupStyle()
         }
     }
 }

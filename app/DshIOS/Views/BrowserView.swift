@@ -59,7 +59,14 @@ final class BrowserPage: NSObject, ObservableObject {
     /// Every tab of every conversation's browser shares one store of its own, kept across launches, so a site
     /// signed in to once stays signed in, for the user and for the agent. It is apart from the default store,
     /// where the engine's web view keeps its session cookie, and from Safari, which no app can read.
-    static let store = WKWebsiteDataStore(forIdentifier: UUID(uuidString: "8E4C2D1A-5B7F-4A3E-9C6D-2F1B0A9E7D45")!)
+    /// `WKWebsiteDataStore(forIdentifier:)` — a store of the agent browser's own, kept apart
+    /// from the app's cookies — is iOS 17. On 16 it falls back to the shared default store.
+    static let store: WKWebsiteDataStore = {
+        if #available(iOS 17.0, *) {
+            return WKWebsiteDataStore(forIdentifier: UUID(uuidString: "8E4C2D1A-5B7F-4A3E-9C6D-2F1B0A9E7D45")!)
+        }
+        return .default()
+    }()
 
     /// Sign out of every site: cookies, storage and caches of all the conversations' browsers.
     static func clearWebsiteData() async {
@@ -84,7 +91,7 @@ final class BrowserPage: NSObject, ObservableObject {
         // The recorder posts from the page's own world, where the page's console and requests are.
         webView.configuration.userContentController.add(LogListener(self), contentWorld: .page, name: LogListener.name)
         installScripts()
-        webView.isInspectable = true
+        if #available(iOS 16.4, *) { webView.isInspectable = true }
         webView.allowsBackForwardNavigationGestures = true
         webView.navigationDelegate = self
         webView.uiDelegate = self
